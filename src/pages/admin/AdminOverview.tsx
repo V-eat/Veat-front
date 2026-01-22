@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Users, Store, ShoppingBag, Euro, Zap, TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-display';
 import { useAdminStats } from '@/hooks/useAdmin';
 
 export default function AdminOverview() {

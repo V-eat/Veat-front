@@ -1,54 +1,40 @@
+/**
+ * Hooks de gestion des éléments de menu
+ * 
+ * Fournit des hooks React Query pour gérer les plats/éléments de menu :
+ * - useMenuItems : récupère les éléments de menu d'un restaurant
+ * - useCreateMenuItem : crée un nouvel élément de menu
+ * - useUpdateMenuItem : met à jour un élément de menu
+ * - useDeleteMenuItem : supprime un élément de menu
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import * as menuItemsService from '@/api/services/menuItems.service';
 
-export interface MenuItem {
-  id: string;
-  restaurant_id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  category: string;
-  allergens: string[];
-  is_available: boolean;
-  created_at: string;
-  updated_at: string;
-}
+export type { MenuItem } from '@/api/services/menuItems.service';
 
+/**
+ * Récupère les éléments de menu d'un restaurant
+ */
 export function useMenuItems(restaurantId: string) {
   return useQuery({
     queryKey: ['menu-items', restaurantId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('category')
-        .order('name');
-
-      if (error) throw error;
-      return data as MenuItem[];
-    },
+    queryFn: () => menuItemsService.getMenuItems(restaurantId),
     enabled: !!restaurantId,
   });
 }
 
+/**
+ * Hook pour créer un nouvel élément de menu
+ */
 export function useCreateMenuItem() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (menuItem: Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .insert(menuItem)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: (menuItem: Omit<menuItemsService.MenuItem, 'id' | 'created_at' | 'updated_at'>) =>
+      menuItemsService.createMenuItem(menuItem),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['menu-items', data.restaurant_id] });
       toast({
@@ -66,22 +52,16 @@ export function useCreateMenuItem() {
   });
 }
 
+/**
+ * Hook pour mettre à jour un élément de menu
+ */
 export function useUpdateMenuItem() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<MenuItem> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, ...updates }: Partial<menuItemsService.MenuItem> & { id: string }) =>
+      menuItemsService.updateMenuItem(id, updates),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['menu-items', data.restaurant_id] });
       toast({
@@ -99,20 +79,16 @@ export function useUpdateMenuItem() {
   });
 }
 
+/**
+ * Hook pour supprimer un élément de menu
+ */
 export function useDeleteMenuItem() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, restaurantId }: { id: string; restaurantId: string }) => {
-      const { error } = await supabase
-        .from('menu_items')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      return { id, restaurantId };
-    },
+    mutationFn: ({ id, restaurantId }: { id: string; restaurantId: string }) =>
+      menuItemsService.deleteMenuItem(id).then(() => ({ id, restaurantId })),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['menu-items', data.restaurantId] });
       toast({

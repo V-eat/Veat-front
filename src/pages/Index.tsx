@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, MapPin, Clock, Utensils, Users, CreditCard, ArrowRight, Star, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/forms';
+import { Input } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { mockRestaurants } from '@/data/mockData';
 

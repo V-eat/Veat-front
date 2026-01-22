@@ -1,3 +1,14 @@
+/**
+ * Composant Footer
+ * 
+ * Pied de page de l'application avec :
+ * - Informations sur la marque et description
+ * - Liens de navigation
+ * - Liens légaux (CGU, confidentialité, cookies)
+ * - Informations de contact
+ * - Liens vers les réseaux sociaux
+ */
+
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react';
 

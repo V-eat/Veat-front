@@ -1,8 +1,20 @@
+/**
+ * Composant Header
+ * 
+ * En-tête de navigation principal de l'application.
+ * Affiche :
+ * - Le logo et le nom de l'application
+ * - Les liens de navigation principaux (Accueil, Restaurants, Favoris)
+ * - Le panier avec le nombre d'articles
+ * - Le bouton de connexion/profil utilisateur
+ * - Un menu mobile responsive
+ */
+
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ShoppingBag, User, MapPin, Search, Heart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 

@@ -1,3 +1,18 @@
+/**
+ * Contexte de gestion du panier
+ * 
+ * Fournit un contexte React pour gérer l'état du panier d'achat :
+ * - Ajout/suppression d'articles
+ * - Mise à jour des quantités
+ * - Gestion du restaurant associé au panier
+ * - Calcul du total des articles et du montant total
+ * - Gestion de l'heure d'arrivée et de l'option "rush"
+ * 
+ * Le panier est limité à un seul restaurant à la fois.
+ * Si l'utilisateur ajoute un article d'un autre restaurant,
+ * le panier est automatiquement vidé et remplacé.
+ */
+
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CartItem, MenuItem } from '@/types';
 

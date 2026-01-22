@@ -23,10 +23,10 @@ import {
   Utensils,
   ExternalLink,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/forms';
+import { Input } from '@/components/ui/forms';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-display';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { mockClientOrders, ORDER_STATUS_CONFIG } from '@/data/clientOrders';

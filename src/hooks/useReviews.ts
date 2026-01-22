@@ -1,66 +1,40 @@
+/**
+ * Hooks de gestion des avis
+ * 
+ * Fournit des hooks React Query pour gérer les avis clients :
+ * - useReviews : récupère les avis d'un restaurant
+ * - useCreateReview : crée un nouvel avis
+ * - useUpdateReview : met à jour un avis
+ * - useDeleteReview : supprime un avis
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import * as reviewsService from '@/api/services/reviews.service';
 
-export interface Review {
-  id: string;
-  user_id: string;
-  restaurant_id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
-  profiles?: {
-    first_name: string;
-    last_name: string;
-    avatar_url: string | null;
-  };
-}
+export type { Review } from '@/api/services/reviews.service';
 
+/**
+ * Récupère les avis d'un restaurant
+ */
 export function useReviews(restaurantId: string) {
   return useQuery({
     queryKey: ['reviews', restaurantId],
-    queryFn: async () => {
-      const { data: reviews, error: reviewsError } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('created_at', { ascending: false });
-
-      if (reviewsError) throw reviewsError;
-      
-      // Fetch profiles separately
-      const userIds = reviews.map(r => r.user_id);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, first_name, last_name, avatar_url')
-        .in('user_id', userIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      
-      return reviews.map(review => ({
-        ...review,
-        profiles: profileMap.get(review.user_id) || null,
-      })) as Review[];
-    },
+    queryFn: () => reviewsService.getRestaurantReviews(restaurantId),
     enabled: !!restaurantId,
   });
 }
 
+/**
+ * Hook pour créer un nouvel avis
+ */
 export function useCreateReview() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (review: { user_id: string; restaurant_id: string; rating: number; comment?: string }) => {
-      const { data, error } = await supabase
-        .from('reviews')
-        .insert(review)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: (review: { user_id: string; restaurant_id: string; rating: number; comment?: string }) =>
+      reviewsService.createReview(review),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', data.restaurant_id] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.restaurant_id] });
@@ -80,22 +54,16 @@ export function useCreateReview() {
   });
 }
 
+/**
+ * Hook pour mettre à jour un avis
+ */
 export function useUpdateReview() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, rating, comment }: { id: string; rating: number; comment?: string }) => {
-      const { data, error } = await supabase
-        .from('reviews')
-        .update({ rating, comment })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, rating, comment }: { id: string; rating: number; comment?: string }) =>
+      reviewsService.updateReview(id, { rating, comment }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', data.restaurant_id] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.restaurant_id] });
@@ -114,20 +82,16 @@ export function useUpdateReview() {
   });
 }
 
+/**
+ * Hook pour supprimer un avis
+ */
 export function useDeleteReview() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, restaurantId }: { id: string; restaurantId: string }) => {
-      const { error } = await supabase
-        .from('reviews')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      return { restaurantId };
-    },
+    mutationFn: ({ id, restaurantId }: { id: string; restaurantId: string }) =>
+      reviewsService.deleteReview(id).then(() => ({ restaurantId })),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', data.restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.restaurantId] });

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { TrendingUp, Euro, Zap, Store, ShoppingBag, Users } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/data-display';
 import { useAdminStats, useAdminOrders } from '@/hooks/useAdmin';
 import { 
   BarChart, 

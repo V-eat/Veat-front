@@ -11,7 +11,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/forms';
 import {
   Sidebar,
   SidebarContent,
@@ -23,7 +23,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-} from '@/components/ui/sidebar';
+} from '@/components/ui/layout';
 import { NavLink } from '@/components/NavLink';
 
 const menuItems = [

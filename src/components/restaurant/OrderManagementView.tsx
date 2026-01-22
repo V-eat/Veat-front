@@ -13,11 +13,11 @@ import {
   AlertTriangle,
   UtensilsCrossed,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/forms';
+import { Card, CardContent } from '@/components/ui/data-display';
+import { Badge } from '@/components/ui/data-display';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
+import { ScrollArea } from '@/components/ui/layout';
 import { cn } from '@/lib/utils';
 import type { Order, OrderStatus } from '@/types';
 

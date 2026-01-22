@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, MapPin, Filter, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/forms';
+import { Button } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { mockRestaurants } from '@/data/mockData';
 import {
@@ -11,7 +11,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/forms';
 
 const cuisineTypes = ['Tous', 'Français', 'Japonais', 'Italien', 'Américain', 'Thaïlandais'];
 const priceRanges = [

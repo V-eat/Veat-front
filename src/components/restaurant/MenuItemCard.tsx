@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Plus, Minus, AlertTriangle } from 'lucide-react';
 import { MenuItem, ALLERGEN_LABELS, Allergen } from '@/types';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';

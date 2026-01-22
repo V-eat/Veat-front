@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   Edit,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/forms';
 import { useAuth } from '@/contexts/AuthContext';
 import { ALLERGEN_LABELS, Allergen } from '@/types';
 

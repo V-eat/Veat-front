@@ -12,8 +12,8 @@ import {
   ChevronLeft,
   Filter,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/forms';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { MenuItemCard } from '@/components/restaurant/MenuItemCard';
 import { mockRestaurants, mockMenuItems, mockReviews } from '@/data/mockData';
 import { useCart } from '@/contexts/CartContext';

@@ -1,6 +1,22 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+/**
+ * Composant racine de l'application
+ * 
+ * Configure tous les providers nécessaires et définit les routes de l'application.
+ * 
+ * Structure des providers (de l'extérieur vers l'intérieur) :
+ * 1. QueryClientProvider - Gestion du cache et des requêtes avec React Query
+ * 2. AuthProvider - Gestion de l'authentification
+ * 3. CartProvider - Gestion du panier
+ * 4. TooltipProvider - Support des tooltips (Radix UI)
+ * 
+ * Routes :
+ * - Routes publiques (login, register) sans layout
+ * - Routes dashboard (restaurant, admin) avec leurs propres layouts
+ * - Routes principales avec MainLayout (Header + Footer)
+ */
+
+import { AppToaster, SonnerToaster } from "@/components/ui/feedback";
+import { TooltipProvider } from "@/components/ui/overlays";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
@@ -36,8 +52,8 @@ const App = () => (
     <AuthProvider>
       <CartProvider>
         <TooltipProvider>
-          <Toaster />
-          <Sonner />
+          <AppToaster />
+          <SonnerToaster />
           <BrowserRouter>
             <Routes>
               {/* Auth pages without layout */}

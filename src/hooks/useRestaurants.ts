@@ -1,110 +1,63 @@
+/**
+ * Hooks de gestion des restaurants
+ * 
+ * Fournit des hooks React Query pour gérer les restaurants :
+ * - useRestaurants : récupère la liste des restaurants avec filtres
+ * - useRestaurant : récupère un restaurant spécifique
+ * - useMyRestaurants : récupère les restaurants d'un propriétaire
+ * - useCreateRestaurant : crée un nouveau restaurant
+ * - useUpdateRestaurant : met à jour un restaurant
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import * as restaurantsService from '@/api/services/restaurants.service';
 
-export interface Restaurant {
-  id: string;
-  owner_id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null;
-  cuisine_type: string | null;
-  email: string;
-  phone: string;
-  address: string;
-  opening_hours: Record<string, { open: string; close: string; isClosed?: boolean }>;
-  preparation_time: number;
-  rating: number;
-  review_count: number;
-  price_range: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+export type { Restaurant } from '@/api/services/restaurants.service';
+export type { RestaurantFilters } from '@/api/services/restaurants.service';
 
-export function useRestaurants(filters?: {
-  cuisineType?: string;
-  priceRange?: number;
-  search?: string;
-}) {
+/**
+ * Récupère la liste des restaurants avec filtres optionnels
+ */
+export function useRestaurants(filters?: restaurantsService.RestaurantFilters) {
   return useQuery({
     queryKey: ['restaurants', filters],
-    queryFn: async () => {
-      let query = supabase
-        .from('restaurants')
-        .select('*')
-        .eq('is_active', true)
-        .order('rating', { ascending: false });
-
-      if (filters?.cuisineType) {
-        query = query.eq('cuisine_type', filters.cuisineType);
-      }
-
-      if (filters?.priceRange) {
-        query = query.eq('price_range', filters.priceRange);
-      }
-
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data as Restaurant[];
-    },
+    queryFn: () => restaurantsService.getRestaurants(filters),
   });
 }
 
+/**
+ * Récupère un restaurant par son ID
+ */
 export function useRestaurant(id: string) {
   return useQuery({
     queryKey: ['restaurant', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      return data as Restaurant;
-    },
+    queryFn: () => restaurantsService.getRestaurantById(id),
     enabled: !!id,
   });
 }
 
+/**
+ * Récupère les restaurants d'un propriétaire
+ */
 export function useMyRestaurants(ownerId: string | undefined) {
   return useQuery({
     queryKey: ['my-restaurants', ownerId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('owner_id', ownerId!)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Restaurant[];
-    },
+    queryFn: () => restaurantsService.getRestaurantsByOwner(ownerId!),
     enabled: !!ownerId,
   });
 }
 
+/**
+ * Hook pour créer un nouveau restaurant
+ */
 export function useCreateRestaurant() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (restaurant: Omit<Restaurant, 'id' | 'created_at' | 'updated_at' | 'rating' | 'review_count'>) => {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .insert(restaurant)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: (restaurant: Omit<restaurantsService.Restaurant, 'id' | 'created_at' | 'updated_at' | 'rating' | 'review_count'>) =>
+      restaurantsService.createRestaurant(restaurant),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       queryClient.invalidateQueries({ queryKey: ['my-restaurants'] });
@@ -123,22 +76,16 @@ export function useCreateRestaurant() {
   });
 }
 
+/**
+ * Hook pour mettre à jour un restaurant
+ */
 export function useUpdateRestaurant() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Restaurant> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('restaurants')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, ...updates }: Partial<restaurantsService.Restaurant> & { id: string }) =>
+      restaurantsService.updateRestaurant(id, updates),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.id] });

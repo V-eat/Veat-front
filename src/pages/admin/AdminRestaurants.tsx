@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, MoreVertical, CheckCircle, XCircle, Star } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/forms';
+import { Button } from '@/components/ui/forms';
+import { Badge } from '@/components/ui/data-display';
 import {
   Table,
   TableBody,
@@ -11,13 +11,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/components/ui/data-display';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/components/ui/overlays';
 import { useAdminRestaurants, useToggleRestaurantStatus } from '@/hooks/useAdmin';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';

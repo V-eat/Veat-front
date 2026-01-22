@@ -9,7 +9,7 @@ import {
   Monitor,
   Smartphone,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/forms';
 import { mockOrders, mockMenuItems } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';

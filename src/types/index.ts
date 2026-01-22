@@ -1,3 +1,11 @@
+/**
+ * Types TypeScript pour l'application V'EAT
+ * 
+ * Définit toutes les interfaces et types utilisés dans l'application.
+ * Ces types sont utilisés pour typer les données échangées entre les composants,
+ * les hooks et les services.
+ */
+
 export interface User {
   id: string;
   firstName: string;

@@ -1,3 +1,17 @@
+/**
+ * Contexte d'authentification
+ * 
+ * Fournit un contexte React pour gérer l'état d'authentification de l'utilisateur.
+ * Encapsule le hook useAuth pour le rendre accessible dans toute l'application.
+ * 
+ * Fournit :
+ * - L'utilisateur actuel et sa session
+ * - Le profil utilisateur complet
+ * - Le rôle de l'utilisateur (client, restaurateur, admin)
+ * - Les méthodes d'authentification (signIn, signUp, signOut, etc.)
+ * - Des helpers pour vérifier le type d'utilisateur (isClient, isRestaurateur, etc.)
+ */
+
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth, Profile } from '@/hooks/useAuth';
 import { User, Session } from '@supabase/supabase-js';

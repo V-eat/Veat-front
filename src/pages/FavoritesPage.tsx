@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Heart } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { mockRestaurants } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/forms';
 
 export default function FavoritesPage() {
   const { isAuthenticated } = useAuth();
