@@ -31,9 +31,11 @@ export interface AdminRestaurant {
   review_count: number;
   is_active: boolean;
   siret: string | null;
-  kbis_url: string | null;
-  status: 'pending' | 'approved' | 'rejected';
-  rejection_reason: string | null;
+  kbis_document_url: string | null;
+  verification_status: 'pending' | 'approved' | 'rejected';
+  verification_comment: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
   created_at: string;
   updated_at: string;
   profiles?: {

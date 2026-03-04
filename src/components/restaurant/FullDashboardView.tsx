@@ -16,22 +16,95 @@ import {
   ToggleRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
+import { Input } from '@/components/ui/forms';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/data-display';
 import { Badge } from '@/components/ui/data-display';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { ScrollArea } from '@/components/ui/layout';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/overlays';
 import { useMenuItems } from '@/hooks/useMenuItems';
-import type { Order } from '@/types';
+import { useUpdateRestaurant } from '@/hooks/useRestaurants';
+import type { Order, OpeningHours, TimeSlot } from '@/types';
+
+const DAYS = [
+  { key: 'monday', label: 'Lundi' },
+  { key: 'tuesday', label: 'Mardi' },
+  { key: 'wednesday', label: 'Mercredi' },
+  { key: 'thursday', label: 'Jeudi' },
+  { key: 'friday', label: 'Vendredi' },
+  { key: 'saturday', label: 'Samedi' },
+  { key: 'sunday', label: 'Dimanche' },
+];
+
+interface DayHourEdit {
+  slots: TimeSlot[];
+  isClosed: boolean;
+}
 
 interface FullDashboardViewProps {
   orders: Order[];
   restaurantId?: string;
+  openingHours?: OpeningHours;
 }
 
-export function FullDashboardView({ orders, restaurantId }: FullDashboardViewProps) {
+export function FullDashboardView({ orders, restaurantId, openingHours: initialOpeningHours }: FullDashboardViewProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'menu' | 'stats' | 'settings'>('overview');
+  const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [editHours, setEditHours] = useState<Record<string, DayHourEdit>>({});
+  const updateRestaurant = useUpdateRestaurant();
 
   const { data: menuItems = [] } = useMenuItems(restaurantId ?? '');
+
+  const openHoursDialog = () => {
+    const initial = DAYS.reduce((acc, day) => {
+      const existing = initialOpeningHours?.[day.key as keyof OpeningHours];
+      if (existing) {
+        acc[day.key] = { slots: existing.slots ?? [{ open: '12:00', close: '22:00' }], isClosed: existing.isClosed };
+      } else {
+        acc[day.key] = { slots: [{ open: '12:00', close: '22:00' }], isClosed: false };
+      }
+      return acc;
+    }, {} as Record<string, DayHourEdit>);
+    setEditHours(initial);
+    setHoursDialogOpen(true);
+  };
+
+  const addSlot = (day: string) => {
+    setEditHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], slots: [...prev[day].slots, { open: '12:00', close: '14:00' }] }
+    }));
+  };
+
+  const removeSlot = (day: string, idx: number) => {
+    setEditHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], slots: prev[day].slots.filter((_, i) => i !== idx) }
+    }));
+  };
+
+  const updateSlot = (day: string, idx: number, field: keyof TimeSlot, value: string) => {
+    setEditHours(prev => {
+      const slots = prev[day].slots.map((s, i) => i === idx ? { ...s, [field]: value } : s);
+      return { ...prev, [day]: { ...prev[day], slots } };
+    });
+  };
+
+  const toggleDayClosed = (day: string, isOpen: boolean) => {
+    setEditHours(prev => ({ ...prev, [day]: { ...prev[day], isClosed: !isOpen } }));
+  };
+
+  const saveHours = async () => {
+    if (!restaurantId) return;
+    await updateRestaurant.mutateAsync({ id: restaurantId, opening_hours: editHours });
+    setHoursDialogOpen(false);
+  };
 
   // Calculate stats
   const todayOrders = orders.filter(o => {
@@ -340,14 +413,23 @@ export function FullDashboardView({ orders, restaurantId }: FullDashboardViewPro
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((day) => (
-                    <div key={day} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                      <span className="font-medium">{day}</span>
-                      <span className="text-muted-foreground">11:30 - 14:30, 18:30 - 22:30</span>
-                    </div>
-                  ))}
+                  {DAYS.map(({ key, label }) => {
+                    const day = initialOpeningHours?.[key as keyof OpeningHours];
+                    return (
+                      <div key={key} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <span className="font-medium">{label}</span>
+                        {day?.isClosed ? (
+                          <span className="text-muted-foreground italic">Fermé</span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {day?.slots?.map(s => `${s.open}–${s.close}`).join(', ') ?? '–'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <Button variant="outline" className="mt-4">
+                <Button variant="outline" className="mt-4" onClick={openHoursDialog}>
                   <Edit className="h-4 w-4 mr-2" />
                   Modifier les horaires
                 </Button>
@@ -371,6 +453,85 @@ export function FullDashboardView({ orders, restaurantId }: FullDashboardViewPro
           </div>
         )}
       </div>
+
+      {/* Opening Hours Dialog */}
+      <Dialog open={hoursDialogOpen} onOpenChange={setHoursDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier les horaires</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {DAYS.map(day => (
+              <div key={day.key} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm w-24">{day.label}</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!(editHours[day.key]?.isClosed ?? false)}
+                      onChange={(e) => toggleDayClosed(day.key, e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {editHours[day.key]?.isClosed ? 'Fermé' : 'Ouvert'}
+                    </span>
+                  </label>
+                </div>
+
+                {!editHours[day.key]?.isClosed && (
+                  <div className="space-y-2 pl-2">
+                    {(editHours[day.key]?.slots ?? []).map((slot, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          value={slot.open}
+                          onChange={(e) => updateSlot(day.key, idx, 'open', e.target.value)}
+                          className="h-9 w-28"
+                        />
+                        <span className="text-muted-foreground">–</span>
+                        <Input
+                          type="time"
+                          value={slot.close}
+                          onChange={(e) => updateSlot(day.key, idx, 'close', e.target.value)}
+                          className="h-9 w-28"
+                        />
+                        {(editHours[day.key]?.slots?.length ?? 0) > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive px-2"
+                            onClick={() => removeSlot(day.key, idx)}
+                          >
+                            ✕
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {(editHours[day.key]?.slots?.length ?? 0) < 3 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary text-xs h-7 px-2"
+                        onClick={() => addSlot(day.key)}
+                      >
+                        + Ajouter un créneau
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHoursDialogOpen(false)}>Annuler</Button>
+            <Button onClick={saveHours} disabled={updateRestaurant.isPending}>
+              {updateRestaurant.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

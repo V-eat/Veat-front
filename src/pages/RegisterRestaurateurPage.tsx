@@ -57,9 +57,13 @@ const step2Schema = z.object({
 type Step1Data = z.infer<typeof step1Schema>;
 type Step2Data = z.infer<typeof step2Schema>;
 
-interface OpeningHour {
+interface TimeSlot {
   open: string;
   close: string;
+}
+
+interface OpeningHour {
+  slots: TimeSlot[];
   isClosed: boolean;
 }
 
@@ -100,9 +104,30 @@ export default function RegisterRestaurateurPage() {
   const [openingHours, setOpeningHours] = useState<Record<string, OpeningHour>>(
     DAYS.reduce((acc, day) => ({
       ...acc,
-      [day.key]: { open: '12:00', close: '22:00', isClosed: false }
+      [day.key]: { slots: [{ open: '12:00', close: '22:00' }], isClosed: false }
     }), {})
   );
+
+  const addSlot = (day: string) => {
+    setOpeningHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], slots: [...prev[day].slots, { open: '12:00', close: '14:00' }] }
+    }));
+  };
+
+  const removeSlot = (day: string, idx: number) => {
+    setOpeningHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], slots: prev[day].slots.filter((_, i) => i !== idx) }
+    }));
+  };
+
+  const updateSlot = (day: string, idx: number, field: keyof TimeSlot, value: string) => {
+    setOpeningHours(prev => {
+      const slots = prev[day].slots.map((s, i) => i === idx ? { ...s, [field]: value } : s);
+      return { ...prev, [day]: { ...prev[day], slots } };
+    });
+  };
 
   const validateStep1 = () => {
     const result = step1Schema.safeParse(step1Data);
@@ -142,10 +167,10 @@ export default function RegisterRestaurateurPage() {
     setErrors({});
   };
 
-  const updateOpeningHour = (day: string, field: keyof OpeningHour, value: string | boolean) => {
+  const toggleDayClosed = (day: string, isOpen: boolean) => {
     setOpeningHours(prev => ({
       ...prev,
-      [day]: { ...prev[day], [field]: value }
+      [day]: { ...prev[day], isClosed: !isOpen }
     }));
   };
 
@@ -160,7 +185,7 @@ export default function RegisterRestaurateurPage() {
     preparation_time: step2Data.preparationTime,
     opening_hours: JSON.parse(JSON.stringify(openingHours)),
     siret: step2Data.siret,
-    kbis_url: kbisUrl,
+    kbis_document_url: kbisUrl,
   });
 
   const uploadKbis = async (userId: string): Promise<string | null> => {
@@ -189,6 +214,9 @@ export default function RegisterRestaurateurPage() {
           title: 'Dossier soumis !',
           description: 'Votre restaurant est en attente de validation par notre équipe (sous 48h).',
         });
+        
+        // Wait a bit for auth context to refresh
+        await new Promise(resolve => setTimeout(resolve, 1000));
         navigate('/dashboard');
       } else {
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -210,6 +238,17 @@ export default function RegisterRestaurateurPage() {
         const kbisUrl = await uploadKbis(authData.user.id);
 
         if (authData.session) {
+          // Initialize profile and role
+          try {
+            await api.post('/profile/init-on-signup', {
+              first_name: step1Data.firstName,
+              last_name: step1Data.lastName,
+              role: 'restaurateur',
+            });
+          } catch (err) {
+            console.error('Failed to initialize profile:', err);
+          }
+
           await api.post('/restaurants', buildRestaurantPayload(step1Data.email, kbisUrl));
         }
 
@@ -217,6 +256,9 @@ export default function RegisterRestaurateurPage() {
           title: 'Dossier soumis !',
           description: 'Votre restaurant est en attente de validation par notre équipe (sous 48h).',
         });
+        
+        // Wait a bit for auth context to refresh
+        await new Promise(resolve => setTimeout(resolve, 1000));
         navigate('/dashboard');
       }
     } catch (error: any) {
@@ -654,41 +696,64 @@ export default function RegisterRestaurateurPage() {
 
               <div className="space-y-3">
                 {DAYS.map(day => (
-                  <div key={day.key} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className="w-24">
-                      <span className="font-medium text-sm">{day.label}</span>
+                  <div key={day.key} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm w-24">{day.label}</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!openingHours[day.key].isClosed}
+                          onChange={(e) => toggleDayClosed(day.key, e.target.checked)}
+                          className="rounded border-border"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {openingHours[day.key].isClosed ? 'Fermé' : 'Ouvert'}
+                        </span>
+                      </label>
                     </div>
 
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={!openingHours[day.key].isClosed}
-                        onChange={(e) => updateOpeningHour(day.key, 'isClosed', !e.target.checked)}
-                        className="rounded border-border"
-                      />
-                      <span className="text-sm text-muted-foreground">Ouvert</span>
-                    </label>
-
                     {!openingHours[day.key].isClosed && (
-                      <div className="flex items-center gap-2 flex-1">
-                        <Input
-                          type="time"
-                          value={openingHours[day.key].open}
-                          onChange={(e) => updateOpeningHour(day.key, 'open', e.target.value)}
-                          className="h-9 w-28"
-                        />
-                        <span className="text-muted-foreground">-</span>
-                        <Input
-                          type="time"
-                          value={openingHours[day.key].close}
-                          onChange={(e) => updateOpeningHour(day.key, 'close', e.target.value)}
-                          className="h-9 w-28"
-                        />
+                      <div className="space-y-2 pl-2">
+                        {openingHours[day.key].slots.map((slot, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <Input
+                              type="time"
+                              value={slot.open}
+                              onChange={(e) => updateSlot(day.key, idx, 'open', e.target.value)}
+                              className="h-9 w-28"
+                            />
+                            <span className="text-muted-foreground">–</span>
+                            <Input
+                              type="time"
+                              value={slot.close}
+                              onChange={(e) => updateSlot(day.key, idx, 'close', e.target.value)}
+                              className="h-9 w-28"
+                            />
+                            {openingHours[day.key].slots.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive px-2"
+                                onClick={() => removeSlot(day.key, idx)}
+                              >
+                                ✕
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        {openingHours[day.key].slots.length < 3 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary text-xs h-7 px-2"
+                            onClick={() => addSlot(day.key)}
+                          >
+                            + Ajouter un créneau
+                          </Button>
+                        )}
                       </div>
-                    )}
-
-                    {openingHours[day.key].isClosed && (
-                      <span className="text-sm text-muted-foreground italic">Fermé</span>
                     )}
                   </div>
                 ))}

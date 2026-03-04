@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Star, Clock, MapPin, Heart } from 'lucide-react';
 import { Restaurant } from '@/types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToggleFavorite } from '@/hooks/useFavorites';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -11,6 +13,19 @@ interface RestaurantCardProps {
 
 export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
   const priceSymbols = '€'.repeat(restaurant.priceRange);
+  const { user } = useAuth();
+  const toggleFavorite = useToggleFavorite();
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return;
+    toggleFavorite.mutate({
+      userId: user.id,
+      restaurantId: restaurant.id,
+      isFavorite: restaurant.isFavorite ?? false,
+    });
+  };
 
   return (
     <motion.div
@@ -28,14 +43,12 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
             <div className="absolute inset-0 gradient-overlay opacity-50" />
-            
+
             {/* Favorite Button */}
             <button
               className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transition-transform hover:scale-110"
-              onClick={(e) => {
-                e.preventDefault();
-                // Toggle favorite
-              }}
+              onClick={handleFavoriteClick}
+              disabled={toggleFavorite.isPending}
             >
               <Heart
                 className={cn(

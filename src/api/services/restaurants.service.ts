@@ -25,12 +25,18 @@ interface DbRestaurant {
   email: string;
   phone: string;
   address: string;
-  opening_hours: Record<string, { open: string; close: string; isClosed?: boolean }>;
+  opening_hours: Record<string, { slots: { open: string; close: string }[]; isClosed: boolean }>;
   preparation_time: number;
   rating: number;
   review_count: number;
   price_range: number;
   is_active: boolean;
+  siret: string | null;
+  kbis_document_url: string | null;
+  verification_status: 'pending' | 'approved' | 'rejected';
+  verification_comment: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +57,12 @@ function mapRestaurant(db: DbRestaurant): Restaurant {
     reviewCount: db.review_count,
     priceRange: (db.price_range as 1 | 2 | 3) ?? 1,
     ownerId: db.owner_id,
+    siret: db.siret ?? undefined,
+    kbisDocumentUrl: db.kbis_document_url ?? undefined,
+    verificationStatus: db.verification_status ?? 'pending',
+    verificationComment: db.verification_comment ?? undefined,
+    verifiedAt: db.verified_at ?? undefined,
+    verifiedBy: db.verified_by ?? undefined,
   };
 }
 

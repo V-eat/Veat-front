@@ -18,7 +18,7 @@ import { ALLERGEN_LABELS, Allergen } from '@/types';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { profile, signOut, isAuthenticated, loading } = useAuth();
+  const { profile, signOut, isAuthenticated, loading, isRestaurateur } = useAuth();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -189,7 +189,7 @@ export default function ProfilePage() {
         </motion.div>
 
         {/* Restaurant Owner CTA */}
-        <motion.div
+        {!isRestaurateur && <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -213,7 +213,7 @@ export default function ProfilePage() {
               </Link>
             </div>
           </div>
-        </motion.div>
+        </motion.div>}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/forms';
 import { Button } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
-import { useRestaurants } from '@/hooks/useRestaurants';
+import { useRestaurantsWithFavorites } from '@/hooks/useRestaurants';
 import {
   Select,
   SelectContent,
@@ -27,7 +27,7 @@ export default function RestaurantsPage() {
   const [selectedPrice, setSelectedPrice] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
 
-  const { data: restaurants = [], isLoading } = useRestaurants({
+  const { data: restaurants = [], isLoading } = useRestaurantsWithFavorites({
     search: searchQuery || undefined,
     cuisineType: selectedCuisine !== 'Tous' ? selectedCuisine : undefined,
     priceRange: selectedPrice !== 'all' ? parseInt(selectedPrice) : undefined,

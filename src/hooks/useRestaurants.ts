@@ -12,6 +12,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import * as restaurantsService from '@/api/services/restaurants.service';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type { Restaurant } from '@/api/services/restaurants.service';
 export type { RestaurantFilters } from '@/api/services/restaurants.service';
@@ -24,6 +26,20 @@ export function useRestaurants(filters?: restaurantsService.RestaurantFilters) {
     queryKey: ['restaurants', filters],
     queryFn: () => restaurantsService.getRestaurants(filters),
   });
+}
+
+/**
+ * Récupère les restaurants avec isFavorite mergé depuis les favoris de l'utilisateur
+ */
+export function useRestaurantsWithFavorites(filters?: restaurantsService.RestaurantFilters) {
+  const { user } = useAuth();
+  const { data: restaurants, ...restaurantsQuery } = useRestaurants(filters);
+  const { data: favorites } = useFavorites(user?.id);
+
+  const favoriteIds = new Set((favorites ?? []).map((f: any) => f.id));
+  const data = restaurants?.map((r) => ({ ...r, isFavorite: favoriteIds.has(r.id) }));
+
+  return { ...restaurantsQuery, data };
 }
 
 /**

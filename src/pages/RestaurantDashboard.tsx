@@ -195,7 +195,7 @@ export default function RestaurantDashboard() {
           onCancelOrder={handleCancelOrder}
         />
       ) : (
-        <FullDashboardView orders={orders} restaurantId={myRestaurant?.id} />
+        <FullDashboardView orders={orders} restaurantId={myRestaurant?.id} openingHours={myRestaurant?.openingHours} />
       )}
     </div>
   );
