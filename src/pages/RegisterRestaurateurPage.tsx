@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Clock, 
-  ChefHat, ArrowRight, ArrowLeft, Store, FileText, Euro
+import {
+  Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Clock,
+  ChefHat, ArrowRight, ArrowLeft, Store, CheckCircle2
 } from 'lucide-react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/forms';
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/forms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/forms';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const CUISINE_TYPES = [
@@ -30,7 +31,6 @@ const DAYS = [
   { key: 'sunday', label: 'Dimanche' },
 ];
 
-// Validation schemas
 const step1Schema = z.object({
   firstName: z.string().trim().min(2, 'Le prénom doit contenir au moins 2 caractères').max(50),
   lastName: z.string().trim().min(2, 'Le nom doit contenir au moins 2 caractères').max(50),
@@ -64,12 +64,15 @@ interface OpeningHour {
 export default function RegisterRestaurateurPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
+  const { isAuthenticated, user, profile } = useAuth();
+
+  // Si déjà connecté, on commence à l'étape 2 (restaurant info)
+  const initialStep = isAuthenticated ? 2 : 1;
+  const [step, setStep] = useState(initialStep);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Step 1 - Personal info
   const [step1Data, setStep1Data] = useState<Step1Data>({
     firstName: '',
     lastName: '',
@@ -78,7 +81,6 @@ export default function RegisterRestaurateurPage() {
     confirmPassword: '',
   });
 
-  // Step 2 - Restaurant info
   const [step2Data, setStep2Data] = useState<Step2Data>({
     restaurantName: '',
     description: '',
@@ -89,7 +91,6 @@ export default function RegisterRestaurateurPage() {
     preparationTime: 20,
   });
 
-  // Step 3 - Opening hours
   const [openingHours, setOpeningHours] = useState<Record<string, OpeningHour>>(
     DAYS.reduce((acc, day) => ({
       ...acc,
@@ -102,9 +103,7 @@ export default function RegisterRestaurateurPage() {
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach(err => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0].toString()] = err.message;
-        }
+        if (err.path[0]) fieldErrors[err.path[0].toString()] = err.message;
       });
       setErrors(fieldErrors);
       return false;
@@ -118,9 +117,7 @@ export default function RegisterRestaurateurPage() {
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach(err => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0].toString()] = err.message;
-        }
+        if (err.path[0]) fieldErrors[err.path[0].toString()] = err.message;
       });
       setErrors(fieldErrors);
       return false;
@@ -130,15 +127,12 @@ export default function RegisterRestaurateurPage() {
   };
 
   const handleNextStep = () => {
-    if (step === 1 && validateStep1()) {
-      setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
-    }
+    if (step === 1 && validateStep1()) setStep(2);
+    else if (step === 2 && validateStep2()) setStep(3);
   };
 
   const handlePrevStep = () => {
-    setStep(step - 1);
+    setStep(prev => Math.max(prev - 1, initialStep));
     setErrors({});
   };
 
@@ -149,62 +143,77 @@ export default function RegisterRestaurateurPage() {
     }));
   };
 
+  const buildRestaurantPayload = (email: string) => ({
+    name: step2Data.restaurantName,
+    description: step2Data.description || null,
+    cuisine_type: step2Data.cuisineType || null,
+    email,
+    phone: step2Data.phone,
+    address: step2Data.address,
+    price_range: step2Data.priceRange,
+    preparation_time: step2Data.preparationTime,
+    opening_hours: JSON.parse(JSON.stringify(openingHours)),
+    is_active: true,
+  });
+
   const handleSubmit = async () => {
     setIsLoading(true);
     setErrors({});
 
     try {
-      // 1. Create user account with restaurateur role
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: step1Data.email,
-        password: step1Data.password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            first_name: step1Data.firstName,
-            last_name: step1Data.lastName,
-            role: 'restaurateur',
-          },
-        },
-      });
+      if (isAuthenticated) {
+        // Flux utilisateur existant : mise à jour du rôle + création du restaurant
+        await api.put('/profile', { role: 'restaurateur' });
+        await api.post('/restaurants', buildRestaurantPayload(user?.email ?? ''));
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Erreur lors de la création du compte');
-
-      // 2. Create restaurant linked to user via backend API
-      // Session may be available immediately if email confirmation is disabled
-      if (authData.session) {
-        await api.post('/restaurants', {
-          name: step2Data.restaurantName,
-          description: step2Data.description || null,
-          cuisine_type: step2Data.cuisineType || null,
-          email: step1Data.email,
-          phone: step2Data.phone,
-          address: step2Data.address,
-          price_range: step2Data.priceRange,
-          preparation_time: step2Data.preparationTime,
-          opening_hours: JSON.parse(JSON.stringify(openingHours)),
-          is_active: true,
+        toast({
+          title: 'Restaurant créé !',
+          description: 'Votre restaurant est en ligne. Bienvenue sur V\'EAT Pro !',
         });
+        navigate('/dashboard');
+      } else {
+        // Flux nouvel utilisateur : inscription + création du restaurant
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: step1Data.email,
+          password: step1Data.password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: {
+              first_name: step1Data.firstName,
+              last_name: step1Data.lastName,
+              role: 'restaurateur',
+            },
+          },
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('Erreur lors de la création du compte');
+
+        if (authData.session) {
+          await api.post('/restaurants', buildRestaurantPayload(step1Data.email));
+        }
+
+        toast({
+          title: 'Inscription réussie !',
+          description: 'Votre restaurant a été créé. Bienvenue sur V\'EAT !',
+        });
+        navigate('/dashboard');
       }
-
-      toast({
-        title: 'Inscription réussie !',
-        description: 'Votre restaurant a été créé. Bienvenue sur V\'EAT !',
-      });
-
-      navigate('/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
         title: 'Erreur',
-        description: error.message || 'Une erreur est survenue lors de l\'inscription',
+        description: error.message || 'Une erreur est survenue',
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Pour la barre de progression : 2 étapes si connecté, 3 sinon
+  const totalSteps = isAuthenticated ? 2 : 3;
+  const displayStep = isAuthenticated ? step - 1 : step;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -246,35 +255,45 @@ export default function RegisterRestaurateurPage() {
             <span className="text-xl font-bold text-foreground">V'EAT</span>
           </Link>
 
-          {/* Progress Steps */}
+          {/* Bannière utilisateur connecté */}
+          {isAuthenticated && profile && (
+            <div className="flex items-center gap-3 p-3 mb-6 rounded-xl bg-primary/10 border border-primary/20">
+              <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+              <p className="text-sm text-foreground">
+                Connecté en tant que <span className="font-semibold">{profile.first_name} {profile.last_name}</span>
+                {' '}— votre compte sera converti en compte restaurateur.
+              </p>
+            </div>
+          )}
+
+          {/* Barre de progression */}
           <div className="flex items-center gap-2 mb-8">
-            {[1, 2, 3].map((s) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
               <div key={s} className="flex items-center gap-2 flex-1">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  s <= step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  s <= displayStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                   {s}
                 </div>
-                {s < 3 && (
+                {s < totalSteps && (
                   <div className={`flex-1 h-1 rounded transition-colors ${
-                    s < step ? 'bg-primary' : 'bg-muted'
+                    s < displayStep ? 'bg-primary' : 'bg-muted'
                   }`} />
                 )}
               </div>
             ))}
           </div>
 
-          {/* Step 1: Personal Info */}
-          {step === 1 && (
+          {/* Step 1: Personal Info (uniquement si non connecté) */}
+          {step === 1 && !isAuthenticated && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
             >
               <h1 className="text-2xl font-bold text-foreground mb-2">Vos informations</h1>
               <p className="text-muted-foreground mb-6">
                 Déjà inscrit ?{' '}
-                <Link to="/login" className="text-primary font-medium hover:underline">
+                <Link to="/login?redirect=/partner" className="text-primary font-medium hover:underline">
                   Connectez-vous
                 </Link>
               </p>
@@ -376,7 +395,6 @@ export default function RegisterRestaurateurPage() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
             >
               <h1 className="text-2xl font-bold text-foreground mb-2">Votre restaurant</h1>
               <p className="text-muted-foreground mb-6">
@@ -498,10 +516,12 @@ export default function RegisterRestaurateurPage() {
                 </div>
 
                 <div className="flex gap-4 mt-6">
-                  <Button variant="outline" size="lg" onClick={handlePrevStep}>
-                    <ArrowLeft className="h-5 w-5 mr-2" />
-                    Retour
-                  </Button>
+                  {!isAuthenticated && (
+                    <Button variant="outline" size="lg" onClick={handlePrevStep}>
+                      <ArrowLeft className="h-5 w-5 mr-2" />
+                      Retour
+                    </Button>
+                  )}
                   <Button variant="hero" size="lg" className="flex-1" onClick={handleNextStep}>
                     Continuer
                     <ArrowRight className="h-5 w-5 ml-2" />
@@ -516,7 +536,6 @@ export default function RegisterRestaurateurPage() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
             >
               <h1 className="text-2xl font-bold text-foreground mb-2">Horaires d'ouverture</h1>
               <p className="text-muted-foreground mb-6">
@@ -529,7 +548,7 @@ export default function RegisterRestaurateurPage() {
                     <div className="w-24">
                       <span className="font-medium text-sm">{day.label}</span>
                     </div>
-                    
+
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -570,10 +589,10 @@ export default function RegisterRestaurateurPage() {
                   <ArrowLeft className="h-5 w-5 mr-2" />
                   Retour
                 </Button>
-                <Button 
-                  variant="hero" 
-                  size="lg" 
-                  className="flex-1" 
+                <Button
+                  variant="hero"
+                  size="lg"
+                  className="flex-1"
                   onClick={handleSubmit}
                   disabled={isLoading}
                 >
