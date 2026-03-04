@@ -43,12 +43,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/login?redirect=/admin');
-    } else if (!isLoading && user && role !== 'admin') {
+    } else if (!isLoading && user && role !== null && role !== 'admin') {
       navigate('/');
     }
   }, [user, role, isLoading, navigate]);
 
-  if (isLoading) {
+  // Show spinner while auth is loading OR while role is being fetched
+  if (isLoading || (user && role === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

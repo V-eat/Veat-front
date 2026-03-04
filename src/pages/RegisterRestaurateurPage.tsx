@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Clock,
-  ChefHat, ArrowRight, ArrowLeft, Store, CheckCircle2
+  ChefHat, ArrowRight, ArrowLeft, Store, CheckCircle2,
+  Upload, FileText, AlertCircle
 } from 'lucide-react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/forms';
@@ -50,6 +51,7 @@ const step2Schema = z.object({
   address: z.string().trim().min(5, 'Adresse trop courte').max(200),
   priceRange: z.number().min(1).max(3),
   preparationTime: z.number().min(5).max(120),
+  siret: z.string().trim().regex(/^\d{14}$/, 'Le SIRET doit contenir exactement 14 chiffres'),
 });
 
 type Step1Data = z.infer<typeof step1Schema>;
@@ -89,7 +91,11 @@ export default function RegisterRestaurateurPage() {
     address: '',
     priceRange: 2,
     preparationTime: 20,
+    siret: '',
   });
+
+  const [kbisFile, setKbisFile] = useState<File | null>(null);
+  const [kbisError, setKbisError] = useState('');
 
   const [openingHours, setOpeningHours] = useState<Record<string, OpeningHour>>(
     DAYS.reduce((acc, day) => ({
@@ -143,7 +149,7 @@ export default function RegisterRestaurateurPage() {
     }));
   };
 
-  const buildRestaurantPayload = (email: string) => ({
+  const buildRestaurantPayload = (email: string, kbisUrl: string | null) => ({
     name: step2Data.restaurantName,
     description: step2Data.description || null,
     cuisine_type: step2Data.cuisineType || null,
@@ -153,8 +159,21 @@ export default function RegisterRestaurateurPage() {
     price_range: step2Data.priceRange,
     preparation_time: step2Data.preparationTime,
     opening_hours: JSON.parse(JSON.stringify(openingHours)),
-    is_active: true,
+    siret: step2Data.siret,
+    kbis_url: kbisUrl,
   });
+
+  const uploadKbis = async (userId: string): Promise<string | null> => {
+    if (!kbisFile) return null;
+    const path = `${userId}/${Date.now()}.pdf`;
+    const { data, error } = await supabase.storage.from('kbis').upload(path, kbisFile, {
+      contentType: 'application/pdf',
+      upsert: false,
+    });
+    if (error) throw new Error(`Erreur upload Kbis : ${error.message}`);
+    const { data: { publicUrl } } = supabase.storage.from('kbis').getPublicUrl(data.path);
+    return publicUrl;
+  };
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -162,17 +181,16 @@ export default function RegisterRestaurateurPage() {
 
     try {
       if (isAuthenticated) {
-        // Flux utilisateur existant : mise à jour du rôle + création du restaurant
+        const kbisUrl = await uploadKbis(user!.id);
         await api.put('/profile', { role: 'restaurateur' });
-        await api.post('/restaurants', buildRestaurantPayload(user?.email ?? ''));
+        await api.post('/restaurants', buildRestaurantPayload(user?.email ?? '', kbisUrl));
 
         toast({
-          title: 'Restaurant créé !',
-          description: 'Votre restaurant est en ligne. Bienvenue sur V\'EAT Pro !',
+          title: 'Dossier soumis !',
+          description: 'Votre restaurant est en attente de validation par notre équipe (sous 48h).',
         });
         navigate('/dashboard');
       } else {
-        // Flux nouvel utilisateur : inscription + création du restaurant
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: step1Data.email,
           password: step1Data.password,
@@ -189,13 +207,15 @@ export default function RegisterRestaurateurPage() {
         if (authError) throw authError;
         if (!authData.user) throw new Error('Erreur lors de la création du compte');
 
+        const kbisUrl = await uploadKbis(authData.user.id);
+
         if (authData.session) {
-          await api.post('/restaurants', buildRestaurantPayload(step1Data.email));
+          await api.post('/restaurants', buildRestaurantPayload(step1Data.email, kbisUrl));
         }
 
         toast({
-          title: 'Inscription réussie !',
-          description: 'Votre restaurant a été créé. Bienvenue sur V\'EAT !',
+          title: 'Dossier soumis !',
+          description: 'Votre restaurant est en attente de validation par notre équipe (sous 48h).',
         });
         navigate('/dashboard');
       }
@@ -513,6 +533,96 @@ export default function RegisterRestaurateurPage() {
                       className="pl-10 h-12"
                     />
                   </div>
+                </div>
+
+                {/* Séparateur vérification légale */}
+                <div className="flex items-center gap-3 pt-2">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground font-medium">Vérification légale</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="siret">Numéro SIRET <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="siret"
+                    placeholder="12345678901234"
+                    maxLength={14}
+                    value={step2Data.siret}
+                    onChange={(e) => setStep2Data(prev => ({ ...prev, siret: e.target.value.replace(/\D/g, '') }))}
+                    className={`h-12 font-mono tracking-wider ${errors.siret ? 'border-destructive' : ''}`}
+                  />
+                  {errors.siret && <p className="text-xs text-destructive">{errors.siret}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    Trouvez votre SIRET sur{' '}
+                    <a href="https://www.infogreffe.fr" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      infogreffe.fr
+                    </a>
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="kbis">
+                    Extrait Kbis (PDF) <span className="text-muted-foreground font-normal">— optionnel mais recommandé</span>
+                  </Label>
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                      kbisFile ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    {kbisFile ? (
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-8 w-8 text-primary flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{kbisFile.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(kbisFile.size / 1024 / 1024).toFixed(2)} Mo
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setKbisFile(null)}
+                          className="text-muted-foreground"
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    ) : (
+                      <label htmlFor="kbis" className="flex flex-col items-center gap-2 cursor-pointer py-2">
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Cliquez pour déposer votre Kbis (PDF, max 5 Mo)
+                        </span>
+                        <input
+                          id="kbis"
+                          type="file"
+                          accept="application/pdf"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) {
+                              setKbisError('Le fichier dépasse 5 Mo');
+                              return;
+                            }
+                            setKbisError('');
+                            setKbisFile(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  {kbisError && <p className="text-xs text-destructive">{kbisError}</p>}
+                </div>
+
+                {/* Bandeau validation */}
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm">
+                    Votre restaurant sera <strong>en attente de validation</strong> après soumission.
+                    Notre équipe vérifie votre dossier sous <strong>48h ouvrées</strong> avant de le rendre visible sur la plateforme.
+                  </p>
                 </div>
 
                 <div className="flex gap-4 mt-6">

@@ -11,7 +11,17 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 async function getToken(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
+  if (session?.access_token) {
+    // Check if token is expired
+    const expiresAt = (session as any).expires_at as number | undefined;
+    const now = Math.floor(Date.now() / 1000);
+    if (!expiresAt || expiresAt > now) {
+      return session.access_token;
+    }
+  }
+  // Token missing or expired — force a refresh
+  const { data: refreshData } = await supabase.auth.refreshSession();
+  return refreshData.session?.access_token ?? null;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
