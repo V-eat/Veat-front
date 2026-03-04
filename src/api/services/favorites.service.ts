@@ -1,87 +1,87 @@
 /**
  * Service de gestion des favoris
- * 
- * Gère toutes les opérations liées aux restaurants favoris :
- * - Récupération des favoris d'un utilisateur
- * - Vérification si un restaurant est en favoris
- * - Ajout/Suppression d'un favori
+ * Appelle le backend V'EAT au lieu de Supabase directement.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/api/client';
+import type { Restaurant } from '@/types';
+
+interface DbRestaurant {
+  id: string;
+  owner_id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  cuisine_type: string | null;
+  email: string;
+  phone: string;
+  address: string;
+  opening_hours: Record<string, unknown>;
+  preparation_time: number;
+  rating: number;
+  review_count: number;
+  price_range: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Favorite {
   id: string;
   user_id: string;
   restaurant_id: string;
   created_at: string;
+  restaurants?: DbRestaurant | null;
 }
 
-/**
- * Récupère tous les favoris d'un utilisateur avec les données des restaurants
- */
-export async function getUserFavorites(userId: string) {
-  const { data, error } = await supabase
-    .from('favorites')
-    .select('*, restaurants(*)')
-    .eq('user_id', userId);
-
-  if (error) throw error;
-  return data;
+export function mapFavoriteToRestaurant(fav: Favorite): Restaurant | null {
+  const r = fav.restaurants;
+  if (!r) return null;
+  return {
+    id: r.id,
+    name: r.name,
+    description: r.description ?? '',
+    imageUrl: r.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    cuisineType: r.cuisine_type ?? undefined,
+    email: r.email,
+    phone: r.phone,
+    address: r.address,
+    openingHours: r.opening_hours as Record<string, { open: string; close: string }>,
+    preparationTime: r.preparation_time,
+    rating: r.rating,
+    reviewCount: r.review_count,
+    priceRange: (r.price_range as 1 | 2 | 3) ?? 1,
+    ownerId: r.owner_id,
+    isFavorite: true,
+  };
 }
 
-/**
- * Vérifie si un restaurant est dans les favoris d'un utilisateur
- */
-export async function isFavorite(userId: string, restaurantId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('favorites')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('restaurant_id', restaurantId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return !!data;
+export async function getUserFavorites(): Promise<Favorite[]> {
+  return api.get<Favorite[]>('/favorites');
 }
 
-/**
- * Ajoute un restaurant aux favoris
- */
-export async function addFavorite(userId: string, restaurantId: string): Promise<void> {
-  const { error } = await supabase
-    .from('favorites')
-    .insert({ user_id: userId, restaurant_id: restaurantId });
-
-  if (error) throw error;
+export async function isFavorite(restaurantId: string): Promise<boolean> {
+  const data = await api.get<{ isFavorite: boolean }>(`/favorites/check/${restaurantId}`);
+  return data.isFavorite;
 }
 
-/**
- * Supprime un restaurant des favoris
- */
-export async function removeFavorite(userId: string, restaurantId: string): Promise<void> {
-  const { error } = await supabase
-    .from('favorites')
-    .delete()
-    .eq('user_id', userId)
-    .eq('restaurant_id', restaurantId);
-
-  if (error) throw error;
+export async function addFavorite(restaurantId: string): Promise<void> {
+  await api.post('/favorites', { restaurant_id: restaurantId });
 }
 
-/**
- * Bascule l'état favori d'un restaurant (ajoute s'il n'est pas favori, retire s'il l'est)
- */
+export async function removeFavorite(restaurantId: string): Promise<void> {
+  await api.delete(`/favorites/${restaurantId}`);
+}
+
 export async function toggleFavorite(
-  userId: string,
   restaurantId: string,
-  isFavorite: boolean
+  currentlyFavorited: boolean
 ): Promise<'added' | 'removed'> {
-  if (isFavorite) {
-    await removeFavorite(userId, restaurantId);
+  if (currentlyFavorited) {
+    await removeFavorite(restaurantId);
     return 'removed';
   } else {
-    await addFavorite(userId, restaurantId);
+    await addFavorite(restaurantId);
     return 'added';
   }
 }
-

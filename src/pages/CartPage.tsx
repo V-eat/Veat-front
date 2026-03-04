@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/forms';
 import { Label } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockRestaurants } from '@/data/mockData';
+import { useRestaurant } from '@/hooks/useRestaurants';
 import { cn } from '@/lib/utils';
 
 export default function CartPage() {
@@ -27,7 +27,7 @@ export default function CartPage() {
   } = useCart();
   const { isAuthenticated } = useAuth();
 
-  const restaurant = mockRestaurants.find(r => r.id === restaurantId);
+  const { data: restaurant } = useRestaurant(restaurantId ?? '');
   const serviceFee = 1.5;
   const rushedFee = 2.5; // 1.5€ pour le restaurateur, 1€ pour la plateforme
   const finalTotal = totalAmount + serviceFee + (isRushed ? rushedFee : 0);

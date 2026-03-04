@@ -1,16 +1,15 @@
 /**
  * Service de gestion des éléments de menu
- * 
- * Gère toutes les opérations liées aux plats/éléments de menu :
- * - Récupération des éléments d'un restaurant
- * - Création d'un élément de menu
- * - Mise à jour d'un élément de menu
- * - Suppression d'un élément de menu
+ * Appelle le backend V'EAT au lieu de Supabase directement.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/api/client';
+import type { MenuItem, Allergen } from '@/types';
 
-export interface MenuItem {
+export type { MenuItem };
+
+// DB row (snake_case) returned by the backend
+interface DbMenuItem {
   id: string;
   restaurant_id: string;
   name: string;
@@ -24,64 +23,39 @@ export interface MenuItem {
   updated_at: string;
 }
 
-/**
- * Récupère tous les éléments de menu d'un restaurant
- */
+function mapMenuItem(db: DbMenuItem): MenuItem {
+  return {
+    id: db.id,
+    restaurantId: db.restaurant_id,
+    name: db.name,
+    description: db.description ?? '',
+    price: db.price,
+    imageUrl: db.image_url ?? undefined,
+    category: db.category,
+    allergens: db.allergens as Allergen[],
+    isAvailable: db.is_available,
+  };
+}
+
 export async function getMenuItems(restaurantId: string): Promise<MenuItem[]> {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .select('*')
-    .eq('restaurant_id', restaurantId)
-    .order('category')
-    .order('name');
-
-  if (error) throw error;
-  return data as MenuItem[];
+  const data = await api.get<DbMenuItem[]>(`/restaurants/${restaurantId}/menu`);
+  return data.map(mapMenuItem);
 }
 
-/**
- * Crée un nouvel élément de menu
- */
 export async function createMenuItem(
-  menuItem: Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>
+  restaurantId: string,
+  menuItem: Omit<DbMenuItem, 'id' | 'created_at' | 'updated_at' | 'restaurant_id'>
 ): Promise<MenuItem> {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .insert(menuItem)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as MenuItem;
+  const data = await api.post<DbMenuItem>(`/restaurants/${restaurantId}/menu`, menuItem);
+  return mapMenuItem(data);
 }
 
-/**
- * Met à jour un élément de menu existant
- */
-export async function updateMenuItem(
-  id: string,
-  updates: Partial<MenuItem>
-): Promise<MenuItem> {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as MenuItem;
+export async function updateMenuItem(id: string, updates: Partial<DbMenuItem>): Promise<MenuItem> {
+  const data = await api.put<DbMenuItem>(`/menu-items/${id}`, updates);
+  return mapMenuItem(data);
 }
 
-/**
- * Supprime un élément de menu
- */
 export async function deleteMenuItem(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('menu_items')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
+  await api.delete(`/menu-items/${id}`);
 }
 

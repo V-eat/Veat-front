@@ -3,17 +3,22 @@ import { motion } from 'framer-motion';
 import { Search, Heart } from 'lucide-react';
 import { Input } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
-import { mockRestaurants } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/hooks/useFavorites';
+import { mapFavoriteToRestaurant } from '@/api/services/favorites.service';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/forms';
+import type { Restaurant } from '@/types';
 
 export default function FavoritesPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock favorites - in real app would come from user data
-  const favoriteRestaurants = mockRestaurants.filter((_, i) => i % 2 === 0);
+  const { data: favorites = [] } = useFavorites(user?.id);
+
+  const favoriteRestaurants: Restaurant[] = favorites
+    .map(mapFavoriteToRestaurant)
+    .filter((r): r is Restaurant => r !== null);
 
   const filteredFavorites = favoriteRestaurants.filter(
     r =>

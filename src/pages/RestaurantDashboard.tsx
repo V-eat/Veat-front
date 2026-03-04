@@ -10,77 +10,59 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
-import { mockOrders, mockMenuItems } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useMyRestaurants } from '@/hooks/useRestaurants';
+import { useRestaurantOrders, useUpdateOrderStatus, useCancelOrder } from '@/hooks/useOrders';
 import { OrderManagementView } from '@/components/restaurant/OrderManagementView';
 import { FullDashboardView } from '@/components/restaurant/FullDashboardView';
 import type { Order, OrderStatus } from '@/types';
 
-// Extended orders for demo
-const extendedOrders: Order[] = [
-  ...mockOrders,
-  {
-    id: 'o3',
-    restaurantId: '1',
-    userId: 'user3',
-    items: [
-      { menuItem: mockMenuItems['1'][0], quantity: 1 },
-      { menuItem: mockMenuItems['1'][1], quantity: 2 },
-    ],
-    status: 'pending',
-    totalAmount: 38.00,
-    arrivalTime: '19:45',
-    tableNumber: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    isRushed: true,
-  },
-  {
-    id: 'o4',
-    restaurantId: '1',
-    userId: 'user4',
-    items: [
-      { menuItem: mockMenuItems['1'][3], quantity: 2 },
-      { menuItem: mockMenuItems['1'][5], quantity: 1 },
-    ],
-    status: 'confirmed',
-    totalAmount: 52.00,
-    arrivalTime: '20:00',
-    tableNumber: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'o5',
-    restaurantId: '1',
-    userId: 'user5',
-    items: [
-      { menuItem: mockMenuItems['1'][2], quantity: 3 },
-    ],
-    status: 'preparing',
-    totalAmount: 45.00,
-    arrivalTime: '19:30',
-    tableNumber: 8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending: 'confirmed',
-  confirmed: 'preparing',
-  preparing: 'ready',
-  ready: 'completed',
-};
+// Map backend order (snake_case) to frontend Order (@/types - camelCase)
+function mapOrder(o: any): Order {
+  return {
+    id: o.id,
+    restaurantId: o.restaurant_id,
+    userId: o.user_id ?? '',
+    items: (o.items ?? []).map((item: any) => ({
+      menuItem: {
+        id: item.menuItemId,
+        restaurantId: o.restaurant_id,
+        name: item.name,
+        description: '',
+        price: item.price,
+        category: '',
+        allergens: [],
+        isAvailable: true,
+      },
+      quantity: item.quantity,
+      specialInstructions: item.specialInstructions,
+    })),
+    status: o.status as OrderStatus,
+    totalAmount: o.total_amount,
+    arrivalTime: o.arrival_time,
+    tableNumber: o.table_number ?? undefined,
+    isRushed: o.is_rushed ?? false,
+    createdAt: o.created_at,
+    updatedAt: o.updated_at,
+  };
+}
 
 type ViewMode = 'orders' | 'dashboard';
 
 export default function RestaurantDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated, loading, role } = useAuth();
-  const [orders, setOrders] = useState<Order[]>(extendedOrders);
+  const { isAuthenticated, loading, role, user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('orders');
+
+  const { data: myRestaurants = [] } = useMyRestaurants(user?.id);
+  const myRestaurant = myRestaurants[0];
+
+  const { data: rawOrders = [], refetch } = useRestaurantOrders(myRestaurant?.id);
+  const updateStatus = useUpdateOrderStatus();
+  const cancelOrderMutation = useCancelOrder();
+
+  const orders: Order[] = useMemo(() => rawOrders.map(mapOrder), [rawOrders]);
 
   // Redirect if not restaurateur
   useEffect(() => {
@@ -97,22 +79,25 @@ export default function RestaurantDashboard() {
     rushed: orders.filter(o => o.isRushed && !['completed', 'cancelled'].includes(o.status)).length,
   }), [orders]);
 
+  const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
+    pending: 'confirmed',
+    confirmed: 'preparing',
+    preparing: 'ready',
+    ready: 'completed',
+  };
+
   const handleUpdateStatus = (orderId: string) => {
-    setOrders(prev => prev.map(order => {
-      if (order.id === orderId && nextStatus[order.status]) {
-        return { ...order, status: nextStatus[order.status]!, updatedAt: new Date().toISOString() };
-      }
-      return order;
-    }));
+    const order = orders.find(o => o.id === orderId);
+    if (!order || !nextStatus[order.status]) return;
+    updateStatus.mutate({ id: orderId, status: nextStatus[order.status]! }, {
+      onSuccess: () => refetch(),
+    });
   };
 
   const handleCancelOrder = (orderId: string) => {
-    setOrders(prev => prev.map(order => {
-      if (order.id === orderId) {
-        return { ...order, status: 'cancelled' as OrderStatus, updatedAt: new Date().toISOString() };
-      }
-      return order;
-    }));
+    cancelOrderMutation.mutate(orderId, {
+      onSuccess: () => refetch(),
+    });
   };
 
   if (loading) {
@@ -210,7 +195,7 @@ export default function RestaurantDashboard() {
           onCancelOrder={handleCancelOrder}
         />
       ) : (
-        <FullDashboardView orders={orders} />
+        <FullDashboardView orders={orders} restaurantId={myRestaurant?.id} />
       )}
     </div>
   );

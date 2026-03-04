@@ -1,17 +1,21 @@
 /**
  * Service de gestion des restaurants
- * 
- * Gère toutes les opérations liées aux restaurants :
- * - Récupération de la liste des restaurants (avec filtres)
- * - Récupération d'un restaurant spécifique
- * - Récupération des restaurants d'un propriétaire
- * - Création d'un restaurant
- * - Mise à jour d'un restaurant
+ * Appelle le backend V'EAT (Express + Supabase) au lieu de Supabase directement.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/api/client';
+import type { Restaurant } from '@/types';
 
-export interface Restaurant {
+export type { Restaurant };
+
+export interface RestaurantFilters {
+  cuisineType?: string;
+  priceRange?: number;
+  search?: string;
+}
+
+// DB row (snake_case) returned by the backend
+interface DbRestaurant {
   id: string;
   owner_id: string;
   name: string;
@@ -31,99 +35,59 @@ export interface Restaurant {
   updated_at: string;
 }
 
-export interface RestaurantFilters {
-  cuisineType?: string;
-  priceRange?: number;
-  search?: string;
+function mapRestaurant(db: DbRestaurant): Restaurant {
+  return {
+    id: db.id,
+    name: db.name,
+    description: db.description ?? '',
+    imageUrl: db.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    cuisineType: db.cuisine_type ?? undefined,
+    email: db.email,
+    phone: db.phone,
+    address: db.address,
+    openingHours: db.opening_hours ?? {},
+    preparationTime: db.preparation_time,
+    rating: db.rating,
+    reviewCount: db.review_count,
+    priceRange: (db.price_range as 1 | 2 | 3) ?? 1,
+    ownerId: db.owner_id,
+  };
 }
 
-/**
- * Récupère la liste des restaurants avec filtres optionnels
- */
 export async function getRestaurants(filters?: RestaurantFilters): Promise<Restaurant[]> {
-  let query = supabase
-    .from('restaurants')
-    .select('*')
-    .eq('is_active', true)
-    .order('rating', { ascending: false });
+  const params = new URLSearchParams();
+  if (filters?.cuisineType) params.set('cuisine_type', filters.cuisineType);
+  if (filters?.priceRange) params.set('price_range', String(filters.priceRange));
+  if (filters?.search) params.set('search', filters.search);
 
-  if (filters?.cuisineType) {
-    query = query.eq('cuisine_type', filters.cuisineType);
-  }
-
-  if (filters?.priceRange) {
-    query = query.eq('price_range', filters.priceRange);
-  }
-
-  if (filters?.search) {
-    query = query.ilike('name', `%${filters.search}%`);
-  }
-
-  const { data, error } = await query;
-
-  if (error) throw error;
-  return data as Restaurant[];
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const data = await api.get<DbRestaurant[]>(`/restaurants${query}`);
+  return data.map(mapRestaurant);
 }
 
-/**
- * Récupère un restaurant par son ID
- */
 export async function getRestaurantById(id: string): Promise<Restaurant> {
-  const { data, error } = await supabase
-    .from('restaurants')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  return data as Restaurant;
+  const data = await api.get<DbRestaurant>(`/restaurants/${id}`);
+  return mapRestaurant(data);
 }
 
-/**
- * Récupère tous les restaurants d'un propriétaire
- */
-export async function getRestaurantsByOwner(ownerId: string): Promise<Restaurant[]> {
-  const { data, error } = await supabase
-    .from('restaurants')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data as Restaurant[];
+export async function getRestaurantsByOwner(): Promise<Restaurant[]> {
+  const data = await api.get<DbRestaurant[]>('/restaurants/mine');
+  return data.map(mapRestaurant);
 }
 
-/**
- * Crée un nouveau restaurant
- */
 export async function createRestaurant(
-  restaurant: Omit<Restaurant, 'id' | 'created_at' | 'updated_at' | 'rating' | 'review_count'>
+  restaurant: Omit<DbRestaurant, 'id' | 'created_at' | 'updated_at' | 'rating' | 'review_count' | 'is_active'>
 ): Promise<Restaurant> {
-  const { data, error } = await supabase
-    .from('restaurants')
-    .insert(restaurant)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Restaurant;
+  const data = await api.post<DbRestaurant>('/restaurants', restaurant);
+  return mapRestaurant(data);
 }
 
-/**
- * Met à jour un restaurant existant
- */
-export async function updateRestaurant(
-  id: string,
-  updates: Partial<Restaurant>
-): Promise<Restaurant> {
-  const { data, error } = await supabase
-    .from('restaurants')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+export async function updateRestaurant(id: string, updates: Partial<DbRestaurant>): Promise<Restaurant> {
+  const data = await api.put<DbRestaurant>(`/restaurants/${id}`, updates);
+  return mapRestaurant(data);
+}
 
-  if (error) throw error;
-  return data as Restaurant;
+export async function deleteRestaurant(id: string): Promise<void> {
+  await api.delete(`/restaurants/${id}`);
 }
 

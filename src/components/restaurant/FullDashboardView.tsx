@@ -20,18 +20,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/data-display';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { ScrollArea } from '@/components/ui/layout';
-import { mockMenuItems } from '@/data/mockData';
+import { useMenuItems } from '@/hooks/useMenuItems';
 import type { Order } from '@/types';
 
 interface FullDashboardViewProps {
   orders: Order[];
+  restaurantId?: string;
 }
 
-export function FullDashboardView({ orders }: FullDashboardViewProps) {
+export function FullDashboardView({ orders, restaurantId }: FullDashboardViewProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'menu' | 'stats' | 'settings'>('overview');
 
-  // Mock menu items for restaurant 1
-  const menuItems = mockMenuItems['1'] || [];
+  const { data: menuItems = [] } = useMenuItems(restaurantId ?? '');
 
   // Calculate stats
   const todayOrders = orders.filter(o => {

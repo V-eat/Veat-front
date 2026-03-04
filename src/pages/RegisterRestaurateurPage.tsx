@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/forms';
 import { Textarea } from '@/components/ui/forms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/forms';
 import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 
 const CUISINE_TYPES = [
@@ -170,11 +171,10 @@ export default function RegisterRestaurateurPage() {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Erreur lors de la création du compte');
 
-      // 2. Create restaurant linked to user
-      const { error: restaurantError } = await supabase
-        .from('restaurants')
-        .insert({
-          owner_id: authData.user.id,
+      // 2. Create restaurant linked to user via backend API
+      // Session may be available immediately if email confirmation is disabled
+      if (authData.session) {
+        await api.post('/restaurants', {
           name: step2Data.restaurantName,
           description: step2Data.description || null,
           cuisine_type: step2Data.cuisineType || null,
@@ -186,8 +186,7 @@ export default function RegisterRestaurateurPage() {
           opening_hours: JSON.parse(JSON.stringify(openingHours)),
           is_active: true,
         });
-
-      if (restaurantError) throw restaurantError;
+      }
 
       toast({
         title: 'Inscription réussie !',

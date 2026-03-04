@@ -33,10 +33,10 @@ export function useCreateMenuItem() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (menuItem: Omit<menuItemsService.MenuItem, 'id' | 'created_at' | 'updated_at'>) =>
-      menuItemsService.createMenuItem(menuItem),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['menu-items', data.restaurant_id] });
+    mutationFn: ({ restaurantId, ...menuItem }: Omit<menuItemsService.MenuItem, 'id'> & { restaurantId: string }) =>
+      menuItemsService.createMenuItem(restaurantId, menuItem as any),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['menu-items', variables.restaurantId] });
       toast({
         title: 'Plat ajouté',
         description: 'Le plat a été ajouté à la carte.',
@@ -61,9 +61,9 @@ export function useUpdateMenuItem() {
 
   return useMutation({
     mutationFn: ({ id, ...updates }: Partial<menuItemsService.MenuItem> & { id: string }) =>
-      menuItemsService.updateMenuItem(id, updates),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['menu-items', data.restaurant_id] });
+      menuItemsService.updateMenuItem(id, updates as any),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['menu-items'] });
       toast({
         title: 'Plat mis à jour',
         description: 'Les modifications ont été enregistrées.',

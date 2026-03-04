@@ -33,11 +33,11 @@ export function useCreateReview() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (review: { user_id: string; restaurant_id: string; rating: number; comment?: string }) =>
-      reviewsService.createReview(review),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', data.restaurant_id] });
-      queryClient.invalidateQueries({ queryKey: ['restaurant', data.restaurant_id] });
+    mutationFn: ({ restaurantId, rating, comment }: { restaurantId: string; rating: number; comment?: string }) =>
+      reviewsService.createReview(restaurantId, { rating, comment }),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', variables.restaurantId] });
+      queryClient.invalidateQueries({ queryKey: ['restaurant', variables.restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       toast({
         title: 'Avis publié',

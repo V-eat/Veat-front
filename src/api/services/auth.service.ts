@@ -9,8 +9,9 @@
  * - Gestion des profils utilisateurs
  */
 
-import { User, Session } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/api/client';
 
 export interface Profile {
   id: string;
@@ -31,37 +32,26 @@ export interface UserRole {
 }
 
 /**
- * Récupère le profil utilisateur depuis la base de données
+ * Récupère le profil utilisateur via le backend
  */
-export async function getProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  if (error) {
-    console.error('Error fetching profile:', error);
+export async function getProfile(_userId: string): Promise<Profile | null> {
+  try {
+    return await api.get<Profile>('/profile');
+  } catch {
     return null;
   }
-  return data as Profile;
 }
 
 /**
- * Récupère le rôle de l'utilisateur
+ * Récupère le rôle de l'utilisateur via le backend
  */
-export async function getUserRole(userId: string): Promise<'client' | 'restaurateur' | 'admin' | null> {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId)
-    .single();
-
-  if (error) {
-    console.error('Error fetching role:', error);
+export async function getUserRole(_userId: string): Promise<'client' | 'restaurateur' | 'admin' | null> {
+  try {
+    const data = await api.get<{ role: string }>('/profile/role');
+    return data.role as 'client' | 'restaurateur' | 'admin';
+  } catch {
     return null;
   }
-  return data?.role as 'client' | 'restaurateur' | 'admin' | null;
 }
 
 /**
@@ -126,18 +116,10 @@ export async function resetPassword(email: string) {
 }
 
 /**
- * Met à jour le profil utilisateur
+ * Met à jour le profil utilisateur via le backend
  */
-export async function updateProfile(userId: string, updates: Partial<Profile>): Promise<Profile> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('user_id', userId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Profile;
+export async function updateProfile(_userId: string, updates: Partial<Profile>): Promise<Profile> {
+  return api.put<Profile>('/profile', updates);
 }
 
 /**

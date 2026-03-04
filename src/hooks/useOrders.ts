@@ -21,7 +21,7 @@ export type { Order, OrderItem } from '@/api/services/orders.service';
 export function useOrders(userId: string | undefined) {
   return useQuery({
     queryKey: ['orders', userId],
-    queryFn: () => ordersService.getUserOrders(userId!),
+    queryFn: () => ordersService.getUserOrders(),
     enabled: !!userId,
   });
 }
@@ -45,7 +45,7 @@ export function useCreateOrder() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (order: Omit<ordersService.Order, 'id' | 'created_at' | 'updated_at' | 'status'> & { status?: string }) =>
+    mutationFn: (order: Omit<ordersService.Order, 'id' | 'created_at' | 'updated_at' | 'status' | 'user_id'>) =>
       ordersService.createOrder(order),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });

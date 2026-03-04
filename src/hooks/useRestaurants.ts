@@ -43,7 +43,7 @@ export function useRestaurant(id: string) {
 export function useMyRestaurants(ownerId: string | undefined) {
   return useQuery({
     queryKey: ['my-restaurants', ownerId],
-    queryFn: () => restaurantsService.getRestaurantsByOwner(ownerId!),
+    queryFn: () => restaurantsService.getRestaurantsByOwner(),
     enabled: !!ownerId,
   });
 }
@@ -56,8 +56,8 @@ export function useCreateRestaurant() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (restaurant: Omit<restaurantsService.Restaurant, 'id' | 'created_at' | 'updated_at' | 'rating' | 'review_count'>) =>
-      restaurantsService.createRestaurant(restaurant),
+    mutationFn: (restaurant: Record<string, unknown>) =>
+      restaurantsService.createRestaurant(restaurant as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       queryClient.invalidateQueries({ queryKey: ['my-restaurants'] });
@@ -84,8 +84,8 @@ export function useUpdateRestaurant() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, ...updates }: Partial<restaurantsService.Restaurant> & { id: string }) =>
-      restaurantsService.updateRestaurant(id, updates),
+    mutationFn: ({ id, ...updates }: { id: string } & Record<string, unknown>) =>
+      restaurantsService.updateRestaurant(id, updates as any),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.id] });

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateOrder } from '@/hooks/useOrders';
-import { mockRestaurants } from '@/data/mockData';
+import { useRestaurant } from '@/hooks/useRestaurants';
 import { toast } from 'sonner';
 
 export default function CheckoutPage() {
@@ -23,7 +23,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const restaurant = mockRestaurants.find(r => r.id === restaurantId);
+  const { data: restaurant } = useRestaurant(restaurantId ?? '');
   const serviceFee = 1.5;
   const rushedFee = 2.5;
   const finalTotal = totalAmount + serviceFee + (isRushed ? rushedFee : 0);
@@ -53,7 +53,6 @@ export default function CheckoutPage() {
       }));
 
       await createOrder.mutateAsync({
-        user_id: user.id,
         restaurant_id: restaurantId,
         items: orderItems,
         total_amount: finalTotal,
@@ -61,7 +60,6 @@ export default function CheckoutPage() {
         table_number: tableNumber ? parseInt(tableNumber) : null,
         is_rushed: isRushed,
         special_instructions: specialInstructions || null,
-        status: 'pending',
       });
 
       setOrderSuccess(true);
