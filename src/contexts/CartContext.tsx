@@ -29,6 +29,10 @@ interface CartContextType {
   setArrivalTime: (time: string | null) => void;
   isRushed: boolean;
   setIsRushed: (rushed: boolean) => void;
+  tableId: string | null;
+  setTableId: (id: string | null) => void;
+  tableCode: string | null;
+  setTableCode: (code: string | null) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -38,6 +42,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [arrivalTime, setArrivalTime] = useState<string | null>(null);
   const [isRushed, setIsRushed] = useState(false);
+  const [tableId, setTableId] = useState<string | null>(null);
+  const [tableCode, setTableCode] = useState<string | null>(null);
 
   const addItem = useCallback((menuItem: MenuItem, quantity: number = 1) => {
     setItems(prev => {
@@ -91,6 +97,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setRestaurantId(null);
     setArrivalTime(null);
     setIsRushed(false);
+    setTableId(null);
+    setTableCode(null);
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -110,6 +118,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setArrivalTime,
       isRushed,
       setIsRushed,
+      tableId,
+      setTableId,
+      tableCode,
+      setTableCode,
     }}>
       {children}
     </CartContext.Provider>

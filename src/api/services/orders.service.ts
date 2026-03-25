@@ -24,6 +24,7 @@ export interface Order {
   table_number: number | null;
   is_rushed: boolean;
   special_instructions: string | null;
+  table_id?: string | null;
   created_at: string;
   updated_at: string;
   restaurants?: {
@@ -31,6 +32,11 @@ export interface Order {
     name: string;
     image_url: string | null;
     address: string;
+  } | null;
+  virtual_tables?: {
+    id: string;
+    join_code: string;
+    table_number: number | null;
   } | null;
 }
 

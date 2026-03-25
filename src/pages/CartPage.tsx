@@ -10,6 +10,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/hooks/useRestaurants';
 import { cn } from '@/lib/utils';
+import { GroupTableWidget } from '@/components/table/GroupTableWidget';
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -189,6 +190,13 @@ export default function CartPage() {
               <Trash2 className="h-4 w-4 mr-2" />
               Vider le panier
             </Button>
+
+            {restaurantId && (
+              <div className="mt-4">
+                <p className="text-sm font-medium text-card-foreground mb-2">Commander en groupe</p>
+                <GroupTableWidget restaurantId={restaurantId} />
+              </div>
+            )}
           </div>
 
           {/* Order Summary */}

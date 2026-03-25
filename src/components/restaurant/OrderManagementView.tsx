@@ -12,6 +12,7 @@ import {
   Package,
   AlertTriangle,
   UtensilsCrossed,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Card, CardContent } from '@/components/ui/data-display';
@@ -333,6 +334,13 @@ function OrderCard({
             </div>
             <span className="font-bold text-lg">{order.totalAmount.toFixed(2)} €</span>
           </div>
+
+          {order.virtual_tables && (
+            <div className="flex items-center gap-1.5 pt-1 text-xs text-primary font-medium">
+              <Users className="h-3 w-3" />
+              Table groupe : <span className="font-mono tracking-widest">{order.virtual_tables.join_code}</span>
+            </div>
+          )}
 
           {!readonly && (
             <div className="flex gap-2 pt-2">
