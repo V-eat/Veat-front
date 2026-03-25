@@ -36,7 +36,7 @@ export function useRestaurantsWithFavorites(filters?: restaurantsService.Restaur
   const { data: restaurants, ...restaurantsQuery } = useRestaurants(filters);
   const { data: favorites } = useFavorites(user?.id);
 
-  const favoriteIds = new Set((favorites ?? []).map((f: any) => f.id));
+  const favoriteIds = new Set((favorites ?? []).map((f: any) => f.restaurant_id));
   const data = restaurants?.map((r) => ({ ...r, isFavorite: favoriteIds.has(r.id) }));
 
   return { ...restaurantsQuery, data };
