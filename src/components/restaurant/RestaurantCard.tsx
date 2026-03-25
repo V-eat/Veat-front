@@ -37,11 +37,17 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
         <div className="group bg-card rounded-2xl overflow-hidden shadow-veat card-hover">
           {/* Image */}
           <div className="relative aspect-[4/3] overflow-hidden">
-            <img
-              src={restaurant.imageUrl}
-              alt={restaurant.name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
+            {restaurant.imageUrl ? (
+              <img
+                src={restaurant.imageUrl}
+                alt={restaurant.name}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center text-sm text-muted-foreground">
+                Aucune photo
+              </div>
+            )}
             <div className="absolute inset-0 gradient-overlay opacity-50" />
 
             {/* Favorite Button */}
@@ -91,7 +97,7 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
             <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
               {restaurant.description}
             </p>
-            
+
             <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />

@@ -1,6 +1,6 @@
 /**
  * Hooks de gestion des restaurants
- * 
+ *
  * Fournit des hooks React Query pour gérer les restaurants :
  * - useRestaurants : récupère la liste des restaurants avec filtres
  * - useRestaurant : récupère un restaurant spécifique
@@ -99,10 +99,30 @@ export function useUpdateRestaurant() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const mergeRestaurantInList = (
+    list: restaurantsService.Restaurant[] | undefined,
+    updated: restaurantsService.Restaurant
+  ) => {
+    if (!Array.isArray(list)) return list;
+    return list.map((restaurant) =>
+      restaurant.id === updated.id ? { ...restaurant, ...updated } : restaurant
+    );
+  };
+
   return useMutation({
     mutationFn: ({ id, ...updates }: { id: string } & Record<string, unknown>) =>
       restaurantsService.updateRestaurant(id, updates as any),
     onSuccess: (data) => {
+      queryClient.setQueriesData({ queryKey: ['restaurants'] }, (oldData: unknown) => {
+        return mergeRestaurantInList(oldData as restaurantsService.Restaurant[] | undefined, data);
+      });
+
+      queryClient.setQueriesData({ queryKey: ['my-restaurants'] }, (oldData: unknown) => {
+        return mergeRestaurantInList(oldData as restaurantsService.Restaurant[] | undefined, data);
+      });
+
+      queryClient.setQueryData(['restaurant', data.id], data);
+
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.id] });
       queryClient.invalidateQueries({ queryKey: ['my-restaurants'] });

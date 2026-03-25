@@ -9,19 +9,46 @@ import { supabase } from '@/integrations/supabase/client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+let cachedToken: string | null = null;
+let cachedTokenExpiresAt: number | null = null;
+
+const setTokenCache = (token: string | null, expiresAt?: number | null) => {
+  cachedToken = token;
+  cachedTokenExpiresAt = expiresAt ?? null;
+};
+
+const isTokenStillValid = (expiresAt?: number | null) => {
+  if (!expiresAt) return true;
+  const now = Math.floor(Date.now() / 1000);
+  return expiresAt > now + 15;
+};
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  setTokenCache(session?.access_token ?? null, session?.expires_at ?? null);
+});
+
 async function getToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    // Check if token is expired
-    const expiresAt = (session as any).expires_at as number | undefined;
-    const now = Math.floor(Date.now() / 1000);
-    if (!expiresAt || expiresAt > now) {
-      return session.access_token;
-    }
+  if (cachedToken && isTokenStillValid(cachedTokenExpiresAt)) {
+    return cachedToken;
   }
+
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (session?.access_token && isTokenStillValid(session.expires_at)) {
+    setTokenCache(session.access_token, session.expires_at ?? null);
+    return session.access_token;
+  }
+
+  if (!session) {
+    setTokenCache(null, null);
+    return null;
+  }
+
   // Token missing or expired — force a refresh
   const { data: refreshData } = await supabase.auth.refreshSession();
-  return refreshData.session?.access_token ?? null;
+  const refreshedToken = refreshData.session?.access_token ?? null;
+  setTokenCache(refreshedToken, refreshData.session?.expires_at ?? null);
+  return refreshedToken;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

@@ -42,11 +42,16 @@ interface DbRestaurant {
 }
 
 function mapRestaurant(db: DbRestaurant): Restaurant {
+  const imageBaseUrl = db.image_url ?? '';
+  const imageUrl = imageBaseUrl && db.updated_at
+    ? `${imageBaseUrl}${imageBaseUrl.includes('?') ? '&' : '?'}v=${encodeURIComponent(db.updated_at)}`
+    : imageBaseUrl;
+
   return {
     id: db.id,
     name: db.name,
     description: db.description ?? '',
-    imageUrl: db.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    imageUrl,
     cuisineType: db.cuisine_type ?? undefined,
     email: db.email,
     phone: db.phone,

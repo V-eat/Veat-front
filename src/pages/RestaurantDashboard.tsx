@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useMyRestaurants } from '@/hooks/useRestaurants';
 import { useRestaurantOrders, useUpdateOrderStatus, useCancelOrder } from '@/hooks/useOrders';
 import { OrderManagementView } from '@/components/restaurant/OrderManagementView';
@@ -51,8 +51,7 @@ function mapOrder(o: any): Order {
 type ViewMode = 'orders' | 'dashboard';
 
 export default function RestaurantDashboard() {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading, role, user } = useAuth();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('orders');
 
   const { data: myRestaurants = [] } = useMyRestaurants(user?.id);
@@ -63,13 +62,6 @@ export default function RestaurantDashboard() {
   const cancelOrderMutation = useCancelOrder();
 
   const orders: Order[] = useMemo(() => rawOrders.map(mapOrder), [rawOrders]);
-
-  // Redirect if not restaurateur
-  useEffect(() => {
-    if (!loading && (!isAuthenticated || (role && role !== 'restaurateur' && role !== 'admin'))) {
-      navigate('/login');
-    }
-  }, [loading, isAuthenticated, role, navigate]);
 
   // Stats for header
   const stats = useMemo(() => ({
@@ -99,14 +91,6 @@ export default function RestaurantDashboard() {
       onSuccess: () => refetch(),
     });
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,7 +134,7 @@ export default function RestaurantDashboard() {
               </Button>
             </div>
           </div>
-          
+
           {/* Quick Stats - Only in orders view */}
           {viewMode === 'orders' && (
             <div className="hidden lg:flex items-center gap-2 sm:gap-4">
@@ -195,7 +179,12 @@ export default function RestaurantDashboard() {
           onCancelOrder={handleCancelOrder}
         />
       ) : (
-        <FullDashboardView orders={orders} restaurantId={myRestaurant?.id} openingHours={myRestaurant?.openingHours} />
+        <FullDashboardView
+          orders={orders}
+          restaurantId={myRestaurant?.id}
+          restaurant={myRestaurant}
+          openingHours={myRestaurant?.openingHours}
+        />
       )}
     </div>
   );

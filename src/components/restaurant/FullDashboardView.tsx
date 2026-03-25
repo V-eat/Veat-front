@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
+import { Textarea } from '@/components/ui/forms';
+import { Label } from '@/components/ui/forms';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/forms';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/data-display';
 import { Badge } from '@/components/ui/data-display';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
@@ -30,7 +33,9 @@ import {
 } from '@/components/ui/overlays';
 import { useMenuItems } from '@/hooks/useMenuItems';
 import { useUpdateRestaurant } from '@/hooks/useRestaurants';
-import type { Order, OpeningHours, TimeSlot } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import type { Order, OpeningHours, TimeSlot, Restaurant } from '@/types';
 
 const DAYS = [
   { key: 'monday', label: 'Lundi' },
@@ -50,14 +55,30 @@ interface DayHourEdit {
 interface FullDashboardViewProps {
   orders: Order[];
   restaurantId?: string;
+  restaurant?: Restaurant;
   openingHours?: OpeningHours;
 }
 
-export function FullDashboardView({ orders, restaurantId, openingHours: initialOpeningHours }: FullDashboardViewProps) {
+export function FullDashboardView({ orders, restaurantId, restaurant, openingHours: initialOpeningHours }: FullDashboardViewProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'menu' | 'stats' | 'settings'>('overview');
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [editHours, setEditHours] = useState<Record<string, DayHourEdit>>({});
+  const [editInfo, setEditInfo] = useState({
+    name: '',
+    description: '',
+    imageUrl: '',
+    cuisineType: '',
+    email: '',
+    phone: '',
+    address: '',
+    priceRange: 1 as 1 | 2 | 3,
+    preparationTime: 20,
+  });
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const updateRestaurant = useUpdateRestaurant();
+  const { toast } = useToast();
 
   const { data: menuItems = [] } = useMenuItems(restaurantId ?? '');
 
@@ -73,6 +94,21 @@ export function FullDashboardView({ orders, restaurantId, openingHours: initialO
     }, {} as Record<string, DayHourEdit>);
     setEditHours(initial);
     setHoursDialogOpen(true);
+  };
+
+  const openInfoDialog = () => {
+    setEditInfo({
+      name: restaurant?.name ?? '',
+      description: restaurant?.description ?? '',
+      imageUrl: restaurant?.imageUrl ?? '',
+      cuisineType: restaurant?.cuisineType ?? '',
+      email: restaurant?.email ?? '',
+      phone: restaurant?.phone ?? '',
+      address: restaurant?.address ?? '',
+      priceRange: restaurant?.priceRange ?? 1,
+      preparationTime: restaurant?.preparationTime ?? 20,
+    });
+    setInfoDialogOpen(true);
   };
 
   const addSlot = (day: string) => {
@@ -106,12 +142,99 @@ export function FullDashboardView({ orders, restaurantId, openingHours: initialO
     setHoursDialogOpen(false);
   };
 
+  const handleImageUpload = async (file: File) => {
+    if (!restaurantId) {
+      toast({
+        title: 'Restaurant introuvable',
+        description: 'Impossible de televerser une image sans identifiant restaurant.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Format non supporte',
+        description: 'Selectionnez un fichier image (jpg, png, webp, etc.).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'Image trop lourde',
+        description: 'La taille maximale autorisee est de 5 Mo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+      const path = `${restaurantId}/${Date.now()}-${safeFileName || `image.${ext}`}`;
+      const bucket = import.meta.env.VITE_SUPABASE_RESTAURANT_IMAGES_BUCKET || 'restaurant-images';
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(path, file, { upsert: true, cacheControl: '3600' });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      if (!data?.publicUrl) {
+        throw new Error('Impossible de recuperer l URL publique de l image.');
+      }
+
+      setEditInfo((prev) => ({ ...prev, imageUrl: data.publicUrl }));
+
+      // Persist image URL to DB immediately so the list updates right away
+      await updateRestaurant.mutateAsync({ id: restaurantId, image_url: data.publicUrl });
+
+      toast({
+        title: 'Image televersee',
+        description: 'La photo du restaurant a ete envoyee avec succes.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Echec du televersement',
+        description: error?.message || 'Verifiez le bucket Supabase et vos permissions Storage.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const saveInfo = async () => {
+    if (!restaurantId) return;
+
+    await updateRestaurant.mutateAsync({
+      id: restaurantId,
+      name: editInfo.name.trim(),
+      description: editInfo.description.trim(),
+      image_url: editInfo.imageUrl.trim(),
+      cuisine_type: editInfo.cuisineType.trim() || null,
+      email: editInfo.email.trim(),
+      phone: editInfo.phone.trim(),
+      address: editInfo.address.trim(),
+      price_range: editInfo.priceRange,
+      preparation_time: editInfo.preparationTime,
+    });
+
+    setInfoDialogOpen(false);
+  };
+
   // Calculate stats
   const todayOrders = orders.filter(o => {
     const today = new Date().toDateString();
     return new Date(o.createdAt).toDateString() === today;
   });
-  
+
   const todayRevenue = todayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
   const completedOrders = orders.filter(o => o.status === 'completed').length;
   const avgOrderValue = completedOrders > 0 ? todayRevenue / completedOrders : 0;
@@ -253,8 +376,8 @@ export function FullDashboardView({ orders, restaurantId, openingHours: initialO
                   <Card key={item.id} className="overflow-hidden">
                     {item.imageUrl && (
                       <div className="aspect-video bg-muted">
-                        <img 
-                          src={item.imageUrl} 
+                        <img
+                          src={item.imageUrl}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />
@@ -389,18 +512,22 @@ export function FullDashboardView({ orders, restaurantId, openingHours: initialO
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Nom</label>
-                    <p className="font-medium">Le Petit Bistrot</p>
+                    <p className="font-medium">{restaurant?.name ?? '-'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Téléphone</label>
-                    <p className="font-medium">01 23 45 67 89</p>
+                    <p className="font-medium">{restaurant?.phone ?? '-'}</p>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-sm font-medium text-muted-foreground">Adresse</label>
-                    <p className="font-medium">12 Rue de la Paix, 75001 Paris</p>
+                    <p className="font-medium">{restaurant?.address ?? '-'}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-sm font-medium text-muted-foreground">Description</label>
+                    <p className="font-medium">{restaurant?.description ?? '-'}</p>
                   </div>
                 </div>
-                <Button variant="outline">
+                <Button variant="outline" onClick={openInfoDialog} disabled={!restaurantId}>
                   <Edit className="h-4 w-4 mr-2" />
                   Modifier les informations
                 </Button>
@@ -445,8 +572,10 @@ export function FullDashboardView({ orders, restaurantId, openingHours: initialO
                   Temps moyen de préparation affiché aux clients
                 </p>
                 <div className="flex items-center gap-4">
-                  <span className="text-2xl font-bold">20 min</span>
-                  <Button variant="outline" size="sm">Modifier</Button>
+                  <span className="text-2xl font-bold">{restaurant?.preparationTime ?? 20} min</span>
+                  <Button variant="outline" size="sm" onClick={openInfoDialog} disabled={!restaurantId}>
+                    Modifier
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -527,6 +656,161 @@ export function FullDashboardView({ orders, restaurantId, openingHours: initialO
           <DialogFooter>
             <Button variant="outline" onClick={() => setHoursDialogOpen(false)}>Annuler</Button>
             <Button onClick={saveHours} disabled={updateRestaurant.isPending}>
+              {updateRestaurant.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restaurant Info Dialog */}
+      <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier les informations du restaurant</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="restaurant-name">Nom</Label>
+              <Input
+                id="restaurant-name"
+                value={editInfo.name}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Nom du restaurant"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="restaurant-description">Description</Label>
+              <Textarea
+                id="restaurant-description"
+                value={editInfo.description}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Décrivez votre restaurant"
+                rows={4}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="restaurant-image">URL de la photo</Label>
+              {editInfo.imageUrl && (
+                <div className="mb-2 overflow-hidden rounded-md border border-border">
+                  <img
+                    src={editInfo.imageUrl}
+                    alt="Photo du restaurant"
+                    className="h-40 w-full object-cover"
+                  />
+                </div>
+              )}
+              <Input
+                id="restaurant-image"
+                value={editInfo.imageUrl}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                placeholder="https://..."
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      void handleImageUpload(file);
+                    }
+                  }}
+                  className="max-w-sm"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {isUploadingImage ? 'Televersement en cours...' : 'Max 5 Mo'}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="restaurant-cuisine">Type de cuisine</Label>
+              <Input
+                id="restaurant-cuisine"
+                value={editInfo.cuisineType}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, cuisineType: e.target.value }))}
+                placeholder="Française, Italienne..."
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="restaurant-price-range">Gamme de prix</Label>
+              <Select
+                value={String(editInfo.priceRange)}
+                onValueChange={(value) => {
+                  const parsed = Number(value);
+                  const clamped = Math.min(3, Math.max(1, Number.isNaN(parsed) ? 1 : parsed));
+                  setEditInfo((prev) => ({ ...prev, priceRange: clamped as 1 | 2 | 3 }));
+                }}
+              >
+                <SelectTrigger id="restaurant-price-range">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">€ - Économique</SelectItem>
+                  <SelectItem value="2">€€ - Modéré</SelectItem>
+                  <SelectItem value="3">€€€ - Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="restaurant-email">Email</Label>
+              <Input
+                id="restaurant-email"
+                type="email"
+                value={editInfo.email}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="contact@restaurant.fr"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="restaurant-phone">Telephone</Label>
+              <Input
+                id="restaurant-phone"
+                value={editInfo.phone}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="01 23 45 67 89"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="restaurant-address">Adresse</Label>
+              <Input
+                id="restaurant-address"
+                value={editInfo.address}
+                onChange={(e) => setEditInfo((prev) => ({ ...prev, address: e.target.value }))}
+                placeholder="Adresse complete"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="restaurant-preparation-time">Temps de preparation (minutes)</Label>
+              <Input
+                id="restaurant-preparation-time"
+                type="number"
+                min={1}
+                max={180}
+                value={editInfo.preparationTime}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  const clamped = Math.min(180, Math.max(1, Number.isNaN(value) ? 20 : value));
+                  setEditInfo((prev) => ({ ...prev, preparationTime: clamped }));
+                }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInfoDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveInfo} disabled={updateRestaurant.isPending || !restaurantId}>
               {updateRestaurant.isPending ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </DialogFooter>

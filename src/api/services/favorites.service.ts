@@ -41,7 +41,7 @@ export function mapFavoriteToRestaurant(fav: Favorite): Restaurant | null {
     id: r.id,
     name: r.name,
     description: r.description ?? '',
-    imageUrl: r.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    imageUrl: r.image_url ?? '',
     cuisineType: r.cuisine_type ?? undefined,
     email: r.email,
     phone: r.phone,
