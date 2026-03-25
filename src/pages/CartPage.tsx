@@ -39,6 +39,12 @@ export default function CartPage() {
   const isTableGuest = !!tableId && !!tableHostUserId && user?.id !== tableHostUserId;
   const isTableHost = !!tableId && !!tableHostUserId && user?.id === tableHostUserId;
 
+  const normalizeTime = (time: string | null | undefined) => {
+    if (!time) return null;
+    // DB TIME values may come back as HH:MM:SS while the select uses HH:MM.
+    return time.slice(0, 5);
+  };
+
   // Generate time slots
   const generateTimeSlots = () => {
     const slots = [];
@@ -118,8 +124,9 @@ export default function CartPage() {
         if (!active) return;
 
         setTableHostUserId(table.host_user_id || null);
-        if (table.arrival_time) {
-          setArrivalTime(table.arrival_time);
+        const normalizedArrival = normalizeTime(table.arrival_time);
+        if (normalizedArrival) {
+          setArrivalTime(normalizedArrival);
         }
       } catch {
         // Keep UX resilient if table sync fails temporarily.
@@ -138,11 +145,12 @@ export default function CartPage() {
   }, [tableId, setArrivalTime, setTableHostUserId]);
 
   const handleArrivalChange = async (value: string) => {
-    setArrivalTime(value);
+    const normalized = normalizeTime(value) || value;
+    setArrivalTime(normalized);
 
     if (tableId && isTableHost) {
       try {
-        await updateTableArrivalTime(tableId, value);
+        await updateTableArrivalTime(tableId, normalized);
       } catch {
         // Keep the selected value locally and notify host.
         alert("Impossible de synchroniser l'heure de table pour le moment.");
@@ -260,7 +268,7 @@ export default function CartPage() {
                   Heure d'arrivée
                 </label>
                 <select
-                  value={arrivalTime || ''}
+                  value={normalizeTime(arrivalTime) || ''}
                   onChange={(e) => void handleArrivalChange(e.target.value)}
                   className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm"
                   disabled={isTableGuest}
