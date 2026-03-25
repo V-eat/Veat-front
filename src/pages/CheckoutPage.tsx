@@ -5,8 +5,6 @@ import { ChevronLeft, CreditCard, Clock, CheckCircle, Loader2, Lock } from 'luci
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/forms';
-import { Input } from '@/components/ui/forms';
-import { Label } from '@/components/ui/forms';
 import { Textarea } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -97,7 +95,6 @@ export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuth();
   const createOrder = useCreateOrder();
 
-  const [tableNumber, setTableNumber] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [step, setStep] = useState<'details' | 'payment'>('details');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -148,7 +145,7 @@ export default function CheckoutPage() {
         items: orderItems,
         total_amount: finalTotal,
         arrival_time: arrivalTime,
-        table_number: tableNumber ? parseInt(tableNumber) : null,
+        table_number: null,
         is_rushed: isRushed,
         special_instructions: specialInstructions || null,
         table_id: tableId ?? null,
@@ -224,11 +221,6 @@ export default function CheckoutPage() {
                       ⚡ Service prioritaire
                     </div>
                   )}
-                </motion.div>
-
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-card rounded-xl p-6 shadow-veat">
-                  <h2 className="font-semibold text-lg mb-4">Numéro de table (optionnel)</h2>
-                  <Input type="number" placeholder="Ex: 12" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} className="max-w-xs" />
                 </motion.div>
 
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card rounded-xl p-6 shadow-veat">

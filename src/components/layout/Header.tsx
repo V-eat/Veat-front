@@ -164,8 +164,8 @@ export function Header() {
               </AnimatePresence>
             </div>
 
-            {/* Cart */}
-            <Link to="/cart">
+            {/* Current Orders */}
+            <Link to={isAuthenticated ? "/my-orders" : "/login?redirect=/my-orders"}>
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingBag className="h-5 w-5" />
                 {totalItems > 0 && (
