@@ -234,7 +234,7 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
     const today = new Date().toDateString();
     return new Date(o.createdAt).toDateString() === today;
   });
-  
+
   const todayRevenue = todayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
   const completedOrders = orders.filter(o => o.status === 'completed').length;
   const avgOrderValue = completedOrders > 0 ? todayRevenue / completedOrders : 0;
@@ -376,8 +376,8 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                   <Card key={item.id} className="overflow-hidden">
                     {item.imageUrl && (
                       <div className="aspect-video bg-muted">
-                        <img 
-                          src={item.imageUrl} 
+                        <img
+                          src={item.imageUrl}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />

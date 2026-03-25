@@ -1,10 +1,10 @@
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Store, 
-  ShoppingBag, 
-  MessageSquare, 
+import {
+  LayoutDashboard,
+  Users,
+  Store,
+  ShoppingBag,
+  MessageSquare,
   BarChart3,
   LogOut,
   ChevronLeft
@@ -59,8 +59,8 @@ export default function AdminDashboard() {
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <NavLink 
-                          to={item.url} 
+                        <NavLink
+                          to={item.url}
                           end={item.url === '/admin'}
                           className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors"
                           activeClassName="bg-primary/10 text-primary font-medium"
@@ -99,8 +99,8 @@ export default function AdminDashboard() {
           <header className="h-14 border-b border-border flex items-center px-6">
             <SidebarTrigger className="mr-4" />
             <h2 className="font-semibold text-lg">
-              {menuItems.find(item => 
-                item.url === '/admin' 
+              {menuItems.find(item =>
+                item.url === '/admin'
                   ? location.pathname === '/admin'
                   : location.pathname.startsWith(item.url)
               )?.title || 'Administration'}

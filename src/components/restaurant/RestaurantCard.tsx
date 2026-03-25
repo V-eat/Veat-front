@@ -97,7 +97,7 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
             <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
               {restaurant.description}
             </p>
-            
+
             <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />

@@ -134,7 +134,7 @@ export default function RestaurantDashboard() {
               </Button>
             </div>
           </div>
-          
+
           {/* Quick Stats - Only in orders view */}
           {viewMode === 'orders' && (
             <div className="hidden lg:flex items-center gap-2 sm:gap-4">
