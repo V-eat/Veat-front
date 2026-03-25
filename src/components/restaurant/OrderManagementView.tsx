@@ -291,6 +291,12 @@ function OrderCard({
         <div className={cn("px-4 py-3 flex items-center justify-between", status.bgColor)}>
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold">#{order.tableNumber || '?'}</span>
+            {order.groupedOrderIds && order.groupedOrderIds.length > 1 && (
+              <Badge variant="secondary">
+                <Users className="h-3 w-3 mr-1" />
+                Groupe x{order.groupedOrderIds.length}
+              </Badge>
+            )}
             {order.isRushed && (
               <Badge variant="destructive" className="animate-pulse">
                 <Zap className="h-3 w-3 mr-1" />
@@ -339,6 +345,9 @@ function OrderCard({
             <div className="flex items-center gap-1.5 pt-1 text-xs text-primary font-medium">
               <Users className="h-3 w-3" />
               Table groupe : <span className="font-mono tracking-widest">{order.virtual_tables.join_code}</span>
+              {order.groupedOrderIds && order.groupedOrderIds.length > 1 && (
+                <span className="text-muted-foreground">({order.groupedOrderIds.length} commandes)</span>
+              )}
             </div>
           )}
 

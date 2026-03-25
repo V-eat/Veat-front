@@ -127,6 +127,7 @@ export interface Order {
   totalAmount: number;
   arrivalTime: string;
   tableNumber?: number;
+  tableId?: string | null;
   isRushed?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -136,6 +137,7 @@ export interface Order {
     join_code: string;
     table_number: number | null;
   } | null;
+  groupedOrderIds?: string[];
 }
 
 export type OrderStatus = 

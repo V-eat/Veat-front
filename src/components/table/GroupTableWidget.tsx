@@ -13,7 +13,7 @@ interface GroupTableWidgetProps {
 
 export function GroupTableWidget({ restaurantId }: GroupTableWidgetProps) {
   const { user } = useAuth();
-  const { tableId, tableCode, setTableId, setTableCode } = useCart();
+  const { tableId, tableCode, setTableId, setTableCode, setTableHostUserId } = useCart();
   const [mode, setMode] = useState<'idle' | 'create' | 'join'>('idle');
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +27,7 @@ export function GroupTableWidget({ restaurantId }: GroupTableWidgetProps) {
       const table = await createTable(restaurantId);
       setTableId(table.id);
       setTableCode(table.join_code);
+      setTableHostUserId(table.host_user_id);
       setMode('idle');
       toast.success(`Table créée ! Code : ${table.join_code}`);
     } catch {
@@ -43,6 +44,7 @@ export function GroupTableWidget({ restaurantId }: GroupTableWidgetProps) {
       const table = await joinTable(joinCodeInput.trim());
       setTableId(table.id);
       setTableCode(table.join_code);
+      setTableHostUserId(table.host_user_id);
       setJoinCodeInput('');
       setMode('idle');
       toast.success('Vous avez rejoint la table !');
@@ -60,6 +62,7 @@ export function GroupTableWidget({ restaurantId }: GroupTableWidgetProps) {
       await leaveTable(tableId);
       setTableId(null);
       setTableCode(null);
+      setTableHostUserId(null);
       toast.success('Vous avez quitté la table');
     } catch {
       toast.error('Erreur en quittant la table');

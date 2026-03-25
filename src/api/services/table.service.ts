@@ -5,6 +5,7 @@ export interface VirtualTable {
   restaurant_id: string;
   host_user_id: string;
   join_code: string;
+  arrival_time: string | null;
   table_number: number | null;
   status: 'open' | 'closed';
   created_at: string;
@@ -33,6 +34,10 @@ export async function getTableByCode(code: string): Promise<VirtualTable> {
 
 export async function closeTable(id: string): Promise<VirtualTable> {
   return api.patch<VirtualTable>(`/tables/${id}/close`, {});
+}
+
+export async function updateTableArrivalTime(id: string, arrivalTime: string): Promise<VirtualTable> {
+  return api.patch<VirtualTable>(`/tables/${id}/arrival-time`, { arrival_time: arrivalTime });
 }
 
 export async function leaveTable(id: string): Promise<void> {

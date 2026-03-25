@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Minus, Plus, Trash2, Clock, AlertCircle, ChevronLeft } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/hooks/useRestaurants';
 import { cn } from '@/lib/utils';
 import { GroupTableWidget } from '@/components/table/GroupTableWidget';
+import { getTable, updateTableArrivalTime } from '@/api/services/table.service';
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -25,13 +26,18 @@ export default function CartPage() {
     setArrivalTime,
     isRushed,
     setIsRushed,
+    tableId,
+    tableHostUserId,
+    setTableHostUserId,
   } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const { data: restaurant } = useRestaurant(restaurantId ?? '');
   const serviceFee = 1.5;
   const rushedFee = 2.5; // 1.5€ pour le restaurateur, 1€ pour la plateforme
   const finalTotal = totalAmount + serviceFee + (isRushed ? rushedFee : 0);
+  const isTableGuest = !!tableId && !!tableHostUserId && user?.id !== tableHostUserId;
+  const isTableHost = !!tableId && !!tableHostUserId && user?.id === tableHostUserId;
 
   // Generate time slots
   const generateTimeSlots = () => {
@@ -99,6 +105,49 @@ export default function CartPage() {
       return;
     }
     navigate('/checkout');
+  };
+
+  useEffect(() => {
+    if (!tableId) return;
+
+    let active = true;
+
+    const loadTableState = async () => {
+      try {
+        const table = await getTable(tableId);
+        if (!active) return;
+
+        setTableHostUserId(table.host_user_id || null);
+        if (table.arrival_time) {
+          setArrivalTime(table.arrival_time);
+        }
+      } catch {
+        // Keep UX resilient if table sync fails temporarily.
+      }
+    };
+
+    void loadTableState();
+    const interval = window.setInterval(() => {
+      void loadTableState();
+    }, 7000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [tableId, setArrivalTime, setTableHostUserId]);
+
+  const handleArrivalChange = async (value: string) => {
+    setArrivalTime(value);
+
+    if (tableId && isTableHost) {
+      try {
+        await updateTableArrivalTime(tableId, value);
+      } catch {
+        // Keep the selected value locally and notify host.
+        alert("Impossible de synchroniser l'heure de table pour le moment.");
+      }
+    }
   };
 
   return (
@@ -212,8 +261,9 @@ export default function CartPage() {
                 </label>
                 <select
                   value={arrivalTime || ''}
-                  onChange={(e) => setArrivalTime(e.target.value)}
+                  onChange={(e) => void handleArrivalChange(e.target.value)}
                   className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm"
+                  disabled={isTableGuest}
                 >
                   <option value="">Choisir une heure</option>
                   {timeSlots.map(slot => (
@@ -222,6 +272,11 @@ export default function CartPage() {
                     </option>
                   ))}
                 </select>
+                {isTableGuest && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    L'heure d'arrivee est fixee par le createur de la table.
+                  </p>
+                )}
                 {restaurant && (
                   <p className="text-xs text-muted-foreground mt-2">
                     Temps de préparation: ~{restaurant.preparationTime} min
