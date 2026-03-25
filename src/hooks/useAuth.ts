@@ -67,6 +67,9 @@ export function useAuth() {
     } catch (error) {
       console.error('Error loading user data:', error);
 
+      // Ensure profile is set to null on error
+      setProfile(null);
+
       const metadataRole = authUser.user_metadata?.role;
       const metadataRoleSafe =
         metadataRole === 'client' || metadataRole === 'restaurateur' || metadataRole === 'admin'
@@ -78,6 +81,7 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true;
+    let hasInitialized = false;
 
     // Écoute les changements d'état d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -96,7 +100,8 @@ export function useAuth() {
           setRole(null);
         }
         
-        if (isMounted) {
+        // Only set loading to false after initialization is complete
+        if (hasInitialized && isMounted) {
           setLoading(false);
         }
       }
@@ -115,10 +120,16 @@ export function useAuth() {
 
         if (session?.user) {
           await loadUserData(session.user);
+        } else {
+          setProfile(null);
+          setRole(null);
         }
       } catch (error) {
         console.error('Error getting session:', error);
+        setProfile(null);
+        setRole(null);
       } finally {
+        hasInitialized = true;
         if (isMounted) {
           setLoading(false);
         }

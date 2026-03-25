@@ -25,7 +25,7 @@ export default function ProfilePage() {
     if (!loading && !isAuthenticated) {
       navigate('/login');
     }
-  }, [loading, isAuthenticated, navigate]);
+  }, [loading, isAuthenticated]); // Removed navigate from dependencies
 
   if (loading) {
     return (
@@ -35,8 +35,30 @@ export default function ProfilePage() {
     );
   }
 
-  if (!isAuthenticated || !profile) {
-    return null;
+  if (!isAuthenticated) {
+    // This should not happen due to the redirect above, but just in case
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Vous devez être connecté pour accéder à cette page.</p>
+          <Link to="/login">
+            <Button>Se connecter</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    // Profile is still loading or failed to load
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Chargement de votre profil...</p>
+        </div>
+      </div>
+    );
   }
 
   const menuItems = [
@@ -157,23 +179,6 @@ export default function ProfilePage() {
               </motion.div>
             ))}
           </div>
-
-          {/* Allergies Preview */}
-          {profile.allergies && profile.allergies.length > 0 && (
-            <div className="p-6 border-t border-border">
-              <h3 className="text-sm font-medium text-card-foreground mb-3">Mes allergies</h3>
-              <div className="flex flex-wrap gap-2">
-                {profile.allergies.map(allergen => (
-                  <span
-                    key={allergen}
-                    className="px-3 py-1 rounded-full bg-destructive/10 text-destructive text-xs font-medium"
-                  >
-                    {ALLERGEN_LABELS[allergen as Allergen]}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Logout */}
           <div className="p-6 border-t border-border">
