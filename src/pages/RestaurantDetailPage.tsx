@@ -10,24 +10,35 @@ import {
   Heart,
   Share2,
   ChevronLeft,
-  Filter,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { MenuItemCard } from '@/components/restaurant/MenuItemCard';
-import { mockRestaurants, mockMenuItems, mockReviews } from '@/data/mockData';
+import { useRestaurant } from '@/hooks/useRestaurants';
+import { useMenuItems } from '@/hooks/useMenuItems';
+import { useReviews } from '@/hooks/useReviews';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToggleFavorite, useIsFavorite } from '@/hooks/useFavorites';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
+import { mapReview } from '@/api/services/reviews.service';
 
 export default function RestaurantDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const restaurant = mockRestaurants.find(r => r.id === id);
-  const menuItems = mockMenuItems[id || ''] || [];
-  const reviews = mockReviews[id || ''] || [];
+  const { user } = useAuth();
+  const { data: restaurant, isLoading: loadingRestaurant } = useRestaurant(id!);
+  const { data: menuItemsRaw = [], isLoading: loadingMenu } = useMenuItems(id!);
+  const { data: reviewsRaw = [] } = useReviews(id!);
+  const { data: favoriteData } = useIsFavorite(user?.id, id!);
+  const toggleFavorite = useToggleFavorite();
   const { totalItems, totalAmount, restaurantId } = useCart();
 
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [isFavorite, setIsFavorite] = useState(restaurant?.isFavorite || false);
+
+  const menuItems = menuItemsRaw;
+  const reviews = reviewsRaw.map(mapReview);
+  const isFavorite = favoriteData ?? false;
 
   const categories = useMemo(() => {
     const cats = ['all', ...new Set(menuItems.map(item => item.category))];
@@ -38,6 +49,19 @@ export default function RestaurantDetailPage() {
     if (selectedCategory === 'all') return menuItems;
     return menuItems.filter(item => item.category === selectedCategory);
   }, [menuItems, selectedCategory]);
+
+  const handleToggleFavorite = () => {
+    if (!user || !id) return;
+    toggleFavorite.mutate({ userId: user.id, restaurantId: id, isFavorite });
+  };
+
+  if (loadingRestaurant) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!restaurant) {
     return (
@@ -77,7 +101,7 @@ export default function RestaurantDetailPage() {
         {/* Actions */}
         <div className="absolute top-4 right-4 flex gap-2">
           <button
-            onClick={() => setIsFavorite(!isFavorite)}
+            onClick={handleToggleFavorite}
             className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center"
           >
             <Heart

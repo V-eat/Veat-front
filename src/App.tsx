@@ -31,6 +31,10 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import RegisterRestaurateurPage from "./pages/RegisterRestaurateurPage";
 import ProfilePage from "./pages/ProfilePage";
+import EditProfilePage from "./pages/profile/EditProfilePage";
+import AllergiesPage from "./pages/profile/AllergiesPage";
+import NotificationsPage from "./pages/profile/NotificationsPage";
+import SettingsPage from "./pages/profile/SettingsPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import RestaurantDashboard from "./pages/RestaurantDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
@@ -83,6 +87,10 @@ const App = () => (
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/profile/edit" element={<EditProfilePage />} />
+                <Route path="/allergies" element={<AllergiesPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
                 <Route path="/my-orders" element={<ClientDashboard />} />
               </Route>

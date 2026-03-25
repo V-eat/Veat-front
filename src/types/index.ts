@@ -35,6 +35,12 @@ export interface Restaurant {
   isFavorite?: boolean;
   distance?: number; // in km
   ownerId: string;
+  siret?: string;
+  kbisDocumentUrl?: string;
+  verificationStatus?: 'pending' | 'approved' | 'rejected';
+  verificationComment?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
 }
 
 export interface OpeningHours {
@@ -47,10 +53,14 @@ export interface OpeningHours {
   sunday?: DayHours;
 }
 
-export interface DayHours {
+export interface TimeSlot {
   open: string;
   close: string;
-  isClosed?: boolean;
+}
+
+export interface DayHours {
+  slots: TimeSlot[];
+  isClosed: boolean;
 }
 
 export interface MenuItem {

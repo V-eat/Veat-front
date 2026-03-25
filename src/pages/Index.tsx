@@ -4,10 +4,11 @@ import { Search, MapPin, Clock, Utensils, Users, CreditCard, ArrowRight, Star, C
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
-import { mockRestaurants } from '@/data/mockData';
+import { useRestaurantsWithFavorites } from '@/hooks/useRestaurants';
 
 export default function Index() {
-  const featuredRestaurants = mockRestaurants.slice(0, 6);
+  const { data: allRestaurants = [] } = useRestaurantsWithFavorites();
+  const featuredRestaurants = allRestaurants.slice(0, 6);
 
   const howItWorks = [
     {

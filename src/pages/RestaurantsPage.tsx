@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, MapPin, Filter, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/forms';
 import { Button } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
-import { mockRestaurants } from '@/data/mockData';
+import { useRestaurantsWithFavorites } from '@/hooks/useRestaurants';
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/forms';
 
-const cuisineTypes = ['Tous', 'Français', 'Japonais', 'Italien', 'Américain', 'Thaïlandais'];
+const cuisineTypes = ['Tous', 'Français', 'Japonais', 'Italien', 'Américain', 'Thaïlandais', 'Végétarien'];
 const priceRanges = [
   { value: 'all', label: 'Tous les prix' },
   { value: '1', label: '€ - Économique' },
@@ -27,33 +27,23 @@ export default function RestaurantsPage() {
   const [selectedPrice, setSelectedPrice] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
 
+  const { data: restaurants = [], isLoading } = useRestaurantsWithFavorites({
+    search: searchQuery || undefined,
+    cuisineType: selectedCuisine !== 'Tous' ? selectedCuisine : undefined,
+    priceRange: selectedPrice !== 'all' ? parseInt(selectedPrice) : undefined,
+  });
+
   const filteredRestaurants = useMemo(() => {
-    return mockRestaurants
-      .filter(restaurant => {
-        const matchesSearch =
-          restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          restaurant.description.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCuisine =
-          selectedCuisine === 'Tous' || restaurant.cuisineType === selectedCuisine;
-        const matchesPrice =
-          selectedPrice === 'all' || restaurant.priceRange === parseInt(selectedPrice);
-        return matchesSearch && matchesCuisine && matchesPrice;
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case 'rating':
-            return b.rating - a.rating;
-          case 'distance':
-            return (a.distance || 999) - (b.distance || 999);
-          case 'price-low':
-            return a.priceRange - b.priceRange;
-          case 'price-high':
-            return b.priceRange - a.priceRange;
-          default:
-            return 0;
-        }
-      });
-  }, [searchQuery, selectedCuisine, selectedPrice, sortBy]);
+    return [...restaurants].sort((a, b) => {
+      switch (sortBy) {
+        case 'rating': return b.rating - a.rating;
+        case 'distance': return (a.distance || 999) - (b.distance || 999);
+        case 'price-low': return a.priceRange - b.priceRange;
+        case 'price-high': return b.priceRange - a.priceRange;
+        default: return 0;
+      }
+    });
+  }, [restaurants, sortBy]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -144,11 +134,17 @@ export default function RestaurantsPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-foreground">
-            {filteredRestaurants.length} restaurant{filteredRestaurants.length !== 1 ? 's' : ''} trouvé{filteredRestaurants.length !== 1 ? 's' : ''}
+            {isLoading ? 'Chargement...' : `${filteredRestaurants.length} restaurant${filteredRestaurants.length !== 1 ? 's' : ''} trouvé${filteredRestaurants.length !== 1 ? 's' : ''}`}
           </h1>
         </div>
 
-        {filteredRestaurants.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-card rounded-2xl h-72 animate-pulse" />
+            ))}
+          </div>
+        ) : filteredRestaurants.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRestaurants.map((restaurant, index) => (
               <RestaurantCard key={restaurant.id} restaurant={restaurant} index={index} />

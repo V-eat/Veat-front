@@ -29,10 +29,47 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-d
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { mockClientOrders, ORDER_STATUS_CONFIG } from '@/data/clientOrders';
-import { mockRestaurants } from '@/data/mockData';
+import { useOrders, useCancelOrder } from '@/hooks/useOrders';
+import { ORDER_STATUS_CONFIG } from '@/data/clientOrders';
 import { cn } from '@/lib/utils';
-import { OrderStatus } from '@/types';
+import type { OrderStatus } from '@/types';
+import type { Order as ApiOrder } from '@/api/services/orders.service';
+
+// Map backend order to display format
+function mapOrder(o: ApiOrder) {
+  return {
+    id: o.id,
+    restaurantId: o.restaurant_id,
+    userId: o.user_id ?? '',
+    items: (o.items ?? []).map((item) => ({
+      menuItem: {
+        id: item.menuItemId,
+        restaurantId: o.restaurant_id,
+        name: item.name,
+        description: '',
+        price: item.price,
+        category: '',
+        allergens: [],
+        isAvailable: true,
+      },
+      quantity: item.quantity,
+      specialInstructions: item.specialInstructions,
+    })),
+    status: o.status as OrderStatus,
+    totalAmount: o.total_amount,
+    arrivalTime: o.arrival_time,
+    tableNumber: o.table_number ?? undefined,
+    isRushed: o.is_rushed ?? false,
+    createdAt: o.created_at,
+    updatedAt: o.updated_at,
+    restaurant: {
+      id: o.restaurants?.id ?? o.restaurant_id,
+      name: o.restaurants?.name ?? 'Restaurant',
+      imageUrl: o.restaurants?.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+      address: o.restaurants?.address ?? '',
+    },
+  };
+}
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
@@ -40,6 +77,11 @@ export default function ClientDashboard() {
   const { addItem } = useCart();
   const [activeTab, setActiveTab] = useState('active');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const { data: rawOrders = [] } = useOrders(user?.id);
+  const cancelOrderMutation = useCancelOrder();
+
+  const allOrders = useMemo(() => rawOrders.map(mapOrder), [rawOrders]);
 
   // Redirect if not authenticated
   if (!isAuthenticated) {
@@ -70,10 +112,10 @@ export default function ClientDashboard() {
   }
 
   // Separate active and past orders
-  const activeOrders = mockClientOrders.filter(
+  const activeOrders = allOrders.filter(
     o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
   );
-  const pastOrders = mockClientOrders.filter(
+  const pastOrders = allOrders.filter(
     o => ['completed', 'cancelled'].includes(o.status)
   );
 
@@ -86,32 +128,38 @@ export default function ClientDashboard() {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const completedOrders = mockClientOrders.filter(o => o.status === 'completed');
+    const completedOrders = allOrders.filter(o => o.status === 'completed');
     const totalSpent = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
     const avgOrderValue = completedOrders.length > 0 ? totalSpent / completedOrders.length : 0;
-    
+
     // Find favorite restaurant
-    const restaurantCounts: Record<string, number> = {};
+    const restaurantCounts: Record<string, { count: number; name: string }> = {};
     completedOrders.forEach(o => {
-      restaurantCounts[o.restaurantId] = (restaurantCounts[o.restaurantId] || 0) + 1;
+      if (!restaurantCounts[o.restaurantId]) {
+        restaurantCounts[o.restaurantId] = { count: 0, name: o.restaurant.name };
+      }
+      restaurantCounts[o.restaurantId].count += 1;
     });
-    const favoriteRestaurantId = Object.entries(restaurantCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const favoriteRestaurant = mockRestaurants.find(r => r.id === favoriteRestaurantId);
+    const favoriteEntry = Object.values(restaurantCounts).sort((a, b) => b.count - a.count)[0];
 
     return {
       totalOrders: completedOrders.length,
       totalSpent,
       avgOrderValue,
-      favoriteRestaurant,
+      favoriteRestaurantName: favoriteEntry?.name ?? null,
       activeOrdersCount: activeOrders.length,
     };
-  }, []);
+  }, [allOrders]);
 
-  const handleReorder = (order: typeof mockClientOrders[0]) => {
+  const handleReorder = (order: ReturnType<typeof mapOrder>) => {
     order.items.forEach(item => {
-      addItem(item.menuItem, item.quantity);
+      addItem(item.menuItem as any, item.quantity);
     });
     navigate(`/restaurant/${order.restaurantId}`);
+  };
+
+  const handleCancelOrder = (orderId: string) => {
+    cancelOrderMutation.mutate(orderId);
   };
 
   const getStatusIcon = (status: OrderStatus) => {
@@ -145,7 +193,7 @@ export default function ClientDashboard() {
     if (diffHours < 24) return `Il y a ${diffHours}h`;
     if (diffDays === 1) return 'Hier';
     if (diffDays < 7) return `Il y a ${diffDays} jours`;
-    
+
     return date.toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
@@ -164,7 +212,7 @@ export default function ClientDashboard() {
             </button>
             <span className="text-white/60">Retour</span>
           </div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -236,7 +284,7 @@ export default function ClientDashboard() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {stats.favoriteRestaurant?.name || '-'}
+                    {stats.favoriteRestaurantName || '-'}
                   </p>
                   <p className="text-xs text-muted-foreground">Restaurant favori</p>
                 </div>
@@ -370,7 +418,7 @@ export default function ClientDashboard() {
                         {/* Progress Steps */}
                         <div className="mt-4 pt-4 border-t border-border">
                           <div className="flex justify-between">
-                            {['confirmed', 'preparing', 'ready'].map((step, i) => {
+                            {['confirmed', 'preparing', 'ready'].map((step) => {
                               const stepOrder = ['pending', 'confirmed', 'preparing', 'ready'];
                               const currentIndex = stepOrder.indexOf(order.status);
                               const stepIndex = stepOrder.indexOf(step);
@@ -415,7 +463,13 @@ export default function ClientDashboard() {
                             </Button>
                           </Link>
                           {order.status === 'pending' && (
-                            <Button variant="ghost" size="sm" className="text-destructive">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => handleCancelOrder(order.id)}
+                              disabled={cancelOrderMutation.isPending}
+                            >
                               Annuler
                             </Button>
                           )}

@@ -32,7 +32,7 @@ const roleLabels = {
 
 export default function AdminUsers() {
   const [search, setSearch] = useState('');
-  const { data: users, isLoading } = useAdminUsers();
+  const { data: users, isLoading, error } = useAdminUsers();
   const updateRole = useUpdateUserRole();
 
   const filteredUsers = users?.filter(user =>
@@ -44,6 +44,14 @@ export default function AdminUsers() {
   const handleRoleChange = (userId: string, role: 'client' | 'restaurateur' | 'admin') => {
     updateRole.mutate({ userId, role });
   };
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+        Erreur : {(error as Error).message}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

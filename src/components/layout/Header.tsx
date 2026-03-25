@@ -11,9 +11,9 @@
  */
 
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShoppingBag, User, MapPin, Search, Heart } from 'lucide-react';
+import { Menu, X, ShoppingBag, User, Search, Heart, ChefHat, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,8 +21,9 @@ import { useAuth } from '@/contexts/AuthContext';
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { totalItems } = useCart();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isRestaurateur, viewMode, toggleViewMode } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
     { to: '/', label: 'Accueil' },
@@ -63,6 +64,35 @@ export function Header() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 md:gap-3">
+            {/* Mode Switch — restaurateurs only */}
+            {isAuthenticated && isRestaurateur && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleViewMode}
+                className={`hidden md:flex items-center gap-1.5 text-xs font-medium ${
+                  viewMode === 'pro'
+                    ? 'border-primary text-primary bg-primary/5 hover:bg-primary/10'
+                    : 'border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary'
+                }`}
+              >
+                {viewMode === 'pro' ? (
+                  <><ChefHat className="h-3.5 w-3.5" /> Mode Pro</>
+                ) : (
+                  <><UserCircle className="h-3.5 w-3.5" /> Mode Client</>
+                )}
+              </Button>
+            )}
+
+            {/* Dashboard link in pro mode */}
+            {isAuthenticated && isRestaurateur && viewMode === 'pro' && (
+              <Link to="/dashboard" className="hidden md:block">
+                <Button variant="ghost" size="sm" className="text-xs text-primary font-medium">
+                  Mon restaurant
+                </Button>
+              </Link>
+            )}
+
             {/* Search - Desktop only */}
             <Button variant="ghost" size="icon" className="hidden md:flex">
               <Search className="h-5 w-5" />
@@ -131,6 +161,22 @@ export function Header() {
                     {link.label}
                   </Link>
                 ))}
+                {isAuthenticated && isRestaurateur && (
+                  <>
+                    {viewMode === 'pro' && (
+                      <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}
+                        className="px-4 py-3 rounded-lg text-sm font-medium text-primary bg-primary/10">
+                        Mon restaurant
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => { toggleViewMode(); setIsMenuOpen(false); }}
+                      className="px-4 py-3 rounded-lg text-sm font-medium text-left text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-2"
+                    >
+                      {viewMode === 'pro' ? <><UserCircle className="h-4 w-4" /> Passer en mode client</> : <><ChefHat className="h-4 w-4" /> Passer en mode pro</>}
+                    </button>
+                  </>
+                )}
                 {!isAuthenticated && (
                   <Link to="/login" onClick={() => setIsMenuOpen(false)}>
                     <Button variant="default" className="w-full mt-2">

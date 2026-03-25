@@ -4,7 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-d
 import { useAdminStats } from '@/hooks/useAdmin';
 
 export default function AdminOverview() {
-  const { data: stats, isLoading } = useAdminStats();
+  const { data: stats, isLoading, error } = useAdminStats();
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+        Erreur : {(error as Error).message}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

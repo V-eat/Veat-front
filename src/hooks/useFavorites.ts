@@ -19,18 +19,18 @@ export type { Favorite } from '@/api/services/favorites.service';
 export function useFavorites(userId: string | undefined) {
   return useQuery({
     queryKey: ['favorites', userId],
-    queryFn: () => favoritesService.getUserFavorites(userId!),
+    queryFn: () => favoritesService.getUserFavorites(),
     enabled: !!userId,
   });
 }
 
 /**
- * Vérifie si un restaurant est dans les favoris d'un utilisateur
+ * Vérifie si un restaurant est dans les favoris de l'utilisateur connecté
  */
 export function useIsFavorite(userId: string | undefined, restaurantId: string) {
   return useQuery({
     queryKey: ['is-favorite', userId, restaurantId],
-    queryFn: () => favoritesService.isFavorite(userId!, restaurantId),
+    queryFn: () => favoritesService.isFavorite(restaurantId),
     enabled: !!userId && !!restaurantId,
   });
 }
@@ -43,11 +43,11 @@ export function useToggleFavorite() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ userId, restaurantId, isFavorite }: { 
-      userId: string; 
-      restaurantId: string; 
+    mutationFn: ({ userId, restaurantId, isFavorite }: {
+      userId: string;
+      restaurantId: string;
       isFavorite: boolean;
-    }) => favoritesService.toggleFavorite(userId, restaurantId, isFavorite),
+    }) => favoritesService.toggleFavorite(restaurantId, isFavorite),
     onSuccess: (action, variables) => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
       queryClient.invalidateQueries({ queryKey: ['is-favorite', variables.userId, variables.restaurantId] });

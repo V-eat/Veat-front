@@ -49,16 +49,30 @@ export function useAuth() {
   /**
    * Charge les données utilisateur (profil et rôle)
    */
-  const loadUserData = useCallback(async (userId: string) => {
+  const loadUserData = useCallback(async (authUser: User) => {
     try {
       const [profileData, roleData] = await Promise.all([
-        withTimeout(authService.getProfile(userId), 5000, () => null),
-        withTimeout(authService.getUserRole(userId), 5000, () => null),
+        withTimeout(authService.getProfile(authUser.id), 5000, () => null),
+        withTimeout(authService.getUserRole(authUser.id), 5000, () => null),
       ]);
+
+      const metadataRole = authUser.user_metadata?.role;
+      const metadataRoleSafe =
+        metadataRole === 'client' || metadataRole === 'restaurateur' || metadataRole === 'admin'
+          ? metadataRole
+          : null;
+
       setProfile(profileData);
-      setRole(roleData);
+      setRole(roleData ?? metadataRoleSafe);
     } catch (error) {
       console.error('Error loading user data:', error);
+
+      const metadataRole = authUser.user_metadata?.role;
+      const metadataRoleSafe =
+        metadataRole === 'client' || metadataRole === 'restaurateur' || metadataRole === 'admin'
+          ? metadataRole
+          : null;
+      setRole(metadataRoleSafe);
     }
   }, []);
 
@@ -76,7 +90,7 @@ export function useAuth() {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserData(session.user.id);
+          await loadUserData(session.user);
         } else {
           setProfile(null);
           setRole(null);
@@ -100,7 +114,7 @@ export function useAuth() {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await loadUserData(session.user.id);
+          await loadUserData(session.user);
         }
       } catch (error) {
         console.error('Error getting session:', error);
