@@ -1,14 +1,30 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, MapPin, Clock, Utensils, Users, CreditCard, ArrowRight, Star, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
 import { useRestaurantsWithFavorites } from '@/hooks/useRestaurants';
+import { useState } from 'react';
 
 export default function Index() {
   const { data: allRestaurants = [] } = useRestaurantsWithFavorites();
   const featuredRestaurants = allRestaurants.slice(0, 6);
+  const navigate = useNavigate();
+
+  // États pour la recherche
+  const [location, setLocation] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = () => {
+    // Naviguer vers la page restaurants avec les paramètres de recherche
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) {
+      params.set('search', searchQuery.trim());
+    }
+    // Pour l'instant, on ignore la location car elle n'est pas encore implémentée côté backend
+    navigate(`/restaurants?${params.toString()}`);
+  };
 
   const howItWorks = [
     {
@@ -84,6 +100,8 @@ export default function Index() {
                 <Input
                   placeholder="Où voulez-vous manger ?"
                   className="pl-12 h-14 border-0 text-base bg-transparent focus-visible:ring-0"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
                 />
               </div>
               <div className="flex-1 relative">
@@ -91,9 +109,12 @@ export default function Index() {
                 <Input
                   placeholder="Restaurant, cuisine..."
                   className="pl-12 h-14 border-0 text-base bg-transparent focus-visible:ring-0"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
-              <Button variant="hero" size="xl" className="md:w-auto w-full">
+              <Button variant="hero" size="xl" className="md:w-auto w-full" onClick={handleSearch}>
                 Rechercher
               </Button>
             </div>

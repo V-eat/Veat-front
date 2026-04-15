@@ -30,10 +30,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-d
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useOrders, useCancelOrder } from '@/hooks/useOrders';
-import { ORDER_STATUS_CONFIG } from '@/data/clientOrders';
 import { cn } from '@/lib/utils';
 import type { OrderStatus } from '@/types';
 import type { Order as ApiOrder } from '@/api/services/orders.service';
+
+const ORDER_STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; description: string }> = {
+  pending: {
+    label: 'En attente',
+    color: 'bg-muted text-muted-foreground',
+    description: 'Votre commande est en attente de confirmation',
+  },
+  confirmed: {
+    label: 'Confirmee',
+    color: 'bg-primary/10 text-primary',
+    description: 'Le restaurant a confirme votre commande',
+  },
+  preparing: {
+    label: 'En preparation',
+    color: 'bg-warning/10 text-warning',
+    description: 'Vos plats sont en cours de preparation',
+  },
+  ready: {
+    label: 'Pret',
+    color: 'bg-success/10 text-success',
+    description: 'Vos plats sont prets, rendez-vous au restaurant !',
+  },
+  completed: {
+    label: 'Terminee',
+    color: 'bg-muted text-muted-foreground',
+    description: 'Commande terminee',
+  },
+  cancelled: {
+    label: 'Annulee',
+    color: 'bg-destructive/10 text-destructive',
+    description: 'Cette commande a ete annulee',
+  },
+};
 
 // Map backend order to display format
 function mapOrder(o: ApiOrder) {

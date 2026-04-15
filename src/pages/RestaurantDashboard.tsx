@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useMyRestaurants } from '@/hooks/useRestaurants';
 import { useRestaurantOrders, useUpdateOrderStatus, useCancelOrder } from '@/hooks/useOrders';
 import { OrderManagementView } from '@/components/restaurant/OrderManagementView';
@@ -42,18 +42,28 @@ function mapOrder(o: any): Order {
     totalAmount: o.total_amount,
     arrivalTime: o.arrival_time,
     tableNumber: o.table_number ?? undefined,
+    tableId: o.table_id ?? null,
     isRushed: o.is_rushed ?? false,
     createdAt: o.created_at,
     updatedAt: o.updated_at,
+    virtual_tables: o.virtual_tables
+      ? {
+          id: o.virtual_tables.id,
+          join_code: o.virtual_tables.join_code,
+          table_number: o.virtual_tables.table_number ?? null,
+        }
+      : null,
   };
 }
 
 type ViewMode = 'orders' | 'dashboard';
 
 export default function RestaurantDashboard() {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading, role, user } = useAuth();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('orders');
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const hasInitializedOrdersRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const { data: myRestaurants = [] } = useMyRestaurants(user?.id);
   const myRestaurant = myRestaurants[0];
@@ -62,14 +72,78 @@ export default function RestaurantDashboard() {
   const updateStatus = useUpdateOrderStatus();
   const cancelOrderMutation = useCancelOrder();
 
-  const orders: Order[] = useMemo(() => rawOrders.map(mapOrder), [rawOrders]);
+  const orders: Order[] = useMemo(() => {
+    const mapped = rawOrders.map(mapOrder);
+    const groupedByTable = new Map<string, Order[]>();
+    const standaloneOrders: Order[] = [];
 
-  // Redirect if not restaurateur
-  useEffect(() => {
-    if (!loading && (!isAuthenticated || (role && role !== 'restaurateur' && role !== 'admin'))) {
-      navigate('/login');
-    }
-  }, [loading, isAuthenticated, role, navigate]);
+    mapped.forEach((order) => {
+      if (!order.tableId) {
+        standaloneOrders.push(order);
+        return;
+      }
+
+      const key = order.tableId;
+      const existing = groupedByTable.get(key) ?? [];
+      existing.push(order);
+      groupedByTable.set(key, existing);
+    });
+
+    const statusPriority: Record<OrderStatus, number> = {
+      pending: 0,
+      confirmed: 1,
+      preparing: 2,
+      ready: 3,
+      completed: 4,
+      cancelled: 5,
+    };
+
+    const groupedOrders: Order[] = Array.from(groupedByTable.entries()).map(([tableId, tableOrders]) => {
+      const itemsMap = new Map<string, Order['items'][number]>();
+
+      tableOrders.forEach((order) => {
+        order.items.forEach((item) => {
+          const key = `${item.menuItem.id}::${item.specialInstructions || ''}`;
+          const existing = itemsMap.get(key);
+          if (existing) {
+            existing.quantity += item.quantity;
+          } else {
+            itemsMap.set(key, {
+              ...item,
+              quantity: item.quantity,
+            });
+          }
+        });
+      });
+
+      const status = tableOrders
+        .map((o) => o.status)
+        .sort((a, b) => statusPriority[a] - statusPriority[b])[0];
+
+      const totalAmount = tableOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      const arrivalTime = tableOrders[0]?.arrivalTime ?? '';
+      const isRushed = tableOrders.some((order) => order.isRushed);
+      const tableNumber = tableOrders.find((o) => o.virtual_tables?.table_number != null)?.virtual_tables?.table_number
+        ?? tableOrders[0]?.tableNumber;
+
+      return {
+        ...tableOrders[0],
+        id: `table-${tableId}`,
+        tableId,
+        status,
+        items: Array.from(itemsMap.values()),
+        totalAmount,
+        arrivalTime,
+        isRushed,
+        tableNumber: tableNumber ?? undefined,
+        groupedOrderIds: tableOrders.map((o) => o.id),
+      };
+    });
+
+    return [...groupedOrders, ...standaloneOrders].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [rawOrders]);
 
   // Stats for header
   const stats = useMemo(() => ({
@@ -89,24 +163,108 @@ export default function RestaurantDashboard() {
   const handleUpdateStatus = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (!order || !nextStatus[order.status]) return;
-    updateStatus.mutate({ id: orderId, status: nextStatus[order.status]! }, {
-      onSuccess: () => refetch(),
+
+    const targetIds = order.groupedOrderIds?.length ? order.groupedOrderIds : [orderId];
+
+    Promise.all(
+      targetIds.map((id) =>
+        updateStatus.mutateAsync({ id, status: nextStatus[order.status]! })
+      )
+    ).then(() => {
+      void refetch();
     });
   };
 
   const handleCancelOrder = (orderId: string) => {
-    cancelOrderMutation.mutate(orderId, {
-      onSuccess: () => refetch(),
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const targetIds = order.groupedOrderIds?.length ? order.groupedOrderIds : [orderId];
+    Promise.all(targetIds.map((id) => cancelOrderMutation.mutateAsync(id))).then(() => {
+      void refetch();
     });
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  // Polling for near real-time order updates in management mode.
+  useEffect(() => {
+    if (!myRestaurant?.id) return;
+
+    const intervalId = window.setInterval(() => {
+      void refetch();
+    }, 8000);
+
+    return () => window.clearInterval(intervalId);
+  }, [myRestaurant?.id, refetch]);
+
+  const playOrderAlert = async (isRushed: boolean) => {
+    if (typeof window === 'undefined') return;
+
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioCtx();
+    }
+
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const sequence = isRushed
+      ? [
+          { frequency: 900, duration: 0.09 },
+          { frequency: 700, duration: 0.09 },
+          { frequency: 1050, duration: 0.16 },
+        ]
+      : [
+          { frequency: 720, duration: 0.1 },
+          { frequency: 860, duration: 0.14 },
+        ];
+
+    let cursor = ctx.currentTime;
+
+    for (const step of sequence) {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = isRushed ? 'sawtooth' : 'sine';
+      oscillator.frequency.setValueAtTime(step.frequency, cursor);
+
+      gain.gain.setValueAtTime(0.0001, cursor);
+      gain.gain.exponentialRampToValueAtTime(0.16, cursor + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, cursor + step.duration);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+
+      oscillator.start(cursor);
+      oscillator.stop(cursor + step.duration + 0.02);
+      cursor += step.duration + 0.04;
+    }
+  };
+
+  // Play audio only when truly new orders appear after initial load.
+  useEffect(() => {
+    if (!myRestaurant?.id) return;
+
+    const currentIds = new Set(rawOrders.map((order: any) => order.id));
+
+    if (!hasInitializedOrdersRef.current) {
+      knownOrderIdsRef.current = currentIds;
+      hasInitializedOrdersRef.current = true;
+      return;
+    }
+
+    const newOrders = rawOrders.filter((order: any) => !knownOrderIdsRef.current.has(order.id));
+
+    if (newOrders.length > 0) {
+      const hasRushedOrder = newOrders.some((order: any) => !!order.is_rushed);
+      void playOrderAlert(hasRushedOrder);
+    }
+
+    knownOrderIdsRef.current = currentIds;
+  }, [rawOrders, myRestaurant?.id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,7 +308,7 @@ export default function RestaurantDashboard() {
               </Button>
             </div>
           </div>
-          
+
           {/* Quick Stats - Only in orders view */}
           {viewMode === 'orders' && (
             <div className="hidden lg:flex items-center gap-2 sm:gap-4">
@@ -195,7 +353,12 @@ export default function RestaurantDashboard() {
           onCancelOrder={handleCancelOrder}
         />
       ) : (
-        <FullDashboardView orders={orders} restaurantId={myRestaurant?.id} openingHours={myRestaurant?.openingHours} />
+        <FullDashboardView
+          orders={orders}
+          restaurantId={myRestaurant?.id}
+          restaurant={myRestaurant}
+          openingHours={myRestaurant?.openingHours}
+        />
       )}
     </div>
   );

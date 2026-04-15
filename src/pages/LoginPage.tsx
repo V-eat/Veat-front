@@ -11,21 +11,32 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/';
-  const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { signIn, isAuthenticated, role, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
 
   // Redirect when authenticated
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      navigate(redirect);
+    if (!isAuthenticated || authLoading) {
+      return;
     }
-  }, [isAuthenticated, authLoading, navigate, redirect]);
+
+    if (redirect.startsWith('/admin')) {
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+      return;
+    }
+
+    navigate(redirect, { replace: true });
+  }, [isAuthenticated, authLoading, role, navigate, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
