@@ -37,16 +37,25 @@ interface DbRestaurant {
   verification_comment: string | null;
   verified_at: string | null;
   verified_by: string | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_complete: boolean | null;
+  stripe_charges_enabled: boolean | null;
+  stripe_payouts_enabled: boolean | null;
   created_at: string;
   updated_at: string;
 }
 
 function mapRestaurant(db: DbRestaurant): Restaurant {
+  const imageBaseUrl = db.image_url ?? '';
+  const imageUrl = imageBaseUrl && db.updated_at
+    ? `${imageBaseUrl}${imageBaseUrl.includes('?') ? '&' : '?'}v=${encodeURIComponent(db.updated_at)}`
+    : imageBaseUrl;
+
   return {
     id: db.id,
     name: db.name,
     description: db.description ?? '',
-    imageUrl: db.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    imageUrl,
     cuisineType: db.cuisine_type ?? undefined,
     email: db.email,
     phone: db.phone,
@@ -63,6 +72,10 @@ function mapRestaurant(db: DbRestaurant): Restaurant {
     verificationComment: db.verification_comment ?? undefined,
     verifiedAt: db.verified_at ?? undefined,
     verifiedBy: db.verified_by ?? undefined,
+    stripeAccountId: db.stripe_account_id ?? undefined,
+    stripeOnboardingComplete: db.stripe_onboarding_complete ?? false,
+    stripeChargesEnabled: db.stripe_charges_enabled ?? false,
+    stripePayoutsEnabled: db.stripe_payouts_enabled ?? false,
   };
 }
 

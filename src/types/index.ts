@@ -41,6 +41,10 @@ export interface Restaurant {
   verificationComment?: string;
   verifiedAt?: string;
   verifiedBy?: string;
+  stripeAccountId?: string;
+  stripeOnboardingComplete?: boolean;
+  stripeChargesEnabled?: boolean;
+  stripePayoutsEnabled?: boolean;
 }
 
 export interface OpeningHours {
@@ -123,9 +127,17 @@ export interface Order {
   totalAmount: number;
   arrivalTime: string;
   tableNumber?: number;
+  tableId?: string | null;
   isRushed?: boolean;
   createdAt: string;
   updatedAt: string;
+  tableId?: string | null;
+  virtual_tables?: {
+    id: string;
+    join_code: string;
+    table_number: number | null;
+  } | null;
+  groupedOrderIds?: string[];
 }
 
 export type OrderStatus = 

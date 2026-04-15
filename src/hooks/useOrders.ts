@@ -23,6 +23,8 @@ export function useOrders(userId: string | undefined) {
     queryKey: ['orders', userId],
     queryFn: () => ordersService.getUserOrders(),
     enabled: !!userId,
+    refetchInterval: 8000,
+    refetchIntervalInBackground: true,
   });
 }
 

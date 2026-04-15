@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/forms';
@@ -22,10 +23,19 @@ const priceRanges = [
 ];
 
 export default function RestaurantsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCuisine, setSelectedCuisine] = useState('Tous');
   const [selectedPrice, setSelectedPrice] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
+
+  // Mettre à jour l'état local quand les paramètres d'URL changent
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl !== null) {
+      setSearchQuery(searchFromUrl);
+    }
+  }, [searchParams]);
 
   const { data: restaurants = [], isLoading } = useRestaurantsWithFavorites({
     search: searchQuery || undefined,
