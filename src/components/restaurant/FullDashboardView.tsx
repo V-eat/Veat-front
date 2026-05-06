@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -420,15 +420,79 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
     }
   };
 
-  // Calculate stats
-  const todayOrders = orders.filter(o => {
-    const today = new Date().toDateString();
-    return new Date(o.createdAt).toDateString() === today;
-  });
+  // Dashboard metrics sourced from backend orders/menu data.
+  const dashboardMetrics = useMemo(() => {
+    const now = new Date();
+    const todayKey = now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayKey = yesterday.toDateString();
 
-  const todayRevenue = todayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const completedOrders = orders.filter(o => o.status === 'completed').length;
-  const avgOrderValue = completedOrders > 0 ? todayRevenue / completedOrders : 0;
+    const isCompleted = (status: string) => status === 'completed';
+    const isCancelled = (status: string) => status === 'cancelled';
+
+    const todayOrders = orders.filter((o) => new Date(o.createdAt).toDateString() === todayKey);
+    const yesterdayOrders = orders.filter((o) => new Date(o.createdAt).toDateString() === yesterdayKey);
+
+    const todayCompleted = todayOrders.filter((o) => isCompleted(o.status));
+    const yesterdayCompleted = yesterdayOrders.filter((o) => isCompleted(o.status));
+
+    const todayRevenue = todayCompleted.reduce((sum, o) => sum + o.totalAmount, 0);
+    const yesterdayRevenue = yesterdayCompleted.reduce((sum, o) => sum + o.totalAmount, 0);
+    const avgOrderValue = todayCompleted.length > 0 ? todayRevenue / todayCompleted.length : 0;
+
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthCompletedOrders = orders.filter(
+      (o) => isCompleted(o.status) && new Date(o.createdAt) >= monthStart
+    );
+    const monthlyRevenue = monthCompletedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const monthlyFees = monthCompletedOrders.reduce(
+      (sum, o) => sum + 1.5 + (o.isRushed ? 1 : 0),
+      0
+    );
+    const monthlyCommissionRate = monthlyRevenue > 0 ? (monthlyFees / monthlyRevenue) * 100 : 0;
+
+    const soldCountByItem = new Map<string, { name: string; quantity: number }>();
+    orders
+      .filter((o) => !isCancelled(o.status))
+      .forEach((order) => {
+        order.items.forEach((item) => {
+          const key = item.menuItem.id || item.menuItem.name;
+          const existing = soldCountByItem.get(key);
+          if (existing) {
+            existing.quantity += item.quantity;
+          } else {
+            soldCountByItem.set(key, { name: item.menuItem.name, quantity: item.quantity });
+          }
+        });
+      });
+
+    const topSellingItems = Array.from(soldCountByItem.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+
+    const orderDelta = yesterdayOrders.length > 0
+      ? ((todayOrders.length - yesterdayOrders.length) / yesterdayOrders.length) * 100
+      : null;
+    const revenueDelta = yesterdayRevenue > 0
+      ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
+      : null;
+
+    return {
+      todayOrdersCount: todayOrders.length,
+      todayRevenue,
+      avgOrderValue,
+      todayCompletedCount: todayCompleted.length,
+      monthlyRevenue,
+      monthlyFees,
+      monthlyCommissionRate,
+      topSellingItems,
+      orderDelta,
+      revenueDelta,
+      rating: restaurant?.rating ?? 0,
+      reviewCount: restaurant?.reviewCount ?? 0,
+    };
+  }, [orders, restaurant?.rating, restaurant?.reviewCount]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
@@ -472,8 +536,12 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                   <ClipboardList className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{todayOrders.length}</div>
-                  <p className="text-xs text-muted-foreground">+12% vs hier</p>
+                  <div className="text-2xl font-bold">{dashboardMetrics.todayOrdersCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardMetrics.orderDelta === null
+                      ? 'Pas de reference hier'
+                      : `${dashboardMetrics.orderDelta >= 0 ? '+' : ''}${dashboardMetrics.orderDelta.toFixed(1)}% vs hier`}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -485,8 +553,12 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{todayRevenue.toFixed(2)} €</div>
-                  <p className="text-xs text-muted-foreground">+8% vs hier</p>
+                  <div className="text-2xl font-bold">{dashboardMetrics.todayRevenue.toFixed(2)} €</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardMetrics.revenueDelta === null
+                      ? 'Pas de reference hier'
+                      : `${dashboardMetrics.revenueDelta >= 0 ? '+' : ''}${dashboardMetrics.revenueDelta.toFixed(1)}% vs hier`}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -498,8 +570,10 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{avgOrderValue.toFixed(2)} €</div>
-                  <p className="text-xs text-muted-foreground">+5% vs hier</p>
+                  <div className="text-2xl font-bold">{dashboardMetrics.avgOrderValue.toFixed(2)} €</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardMetrics.todayCompletedCount} commandes completees aujourd'hui
+                  </p>
                 </CardContent>
               </Card>
 
@@ -511,8 +585,10 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                   <Star className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">4.8</div>
-                  <p className="text-xs text-muted-foreground">Basé sur 127 avis</p>
+                  <div className="text-2xl font-bold">{dashboardMetrics.rating.toFixed(1)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Base sur {dashboardMetrics.reviewCount} avis
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -636,13 +712,16 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {menuItems.slice(0, 5).map((item, idx) => (
-                      <div key={item.id} className="flex items-center gap-3">
+                    {dashboardMetrics.topSellingItems.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Pas encore de ventes enregistrees.</p>
+                    )}
+                    {dashboardMetrics.topSellingItems.map((item, idx) => (
+                      <div key={`${item.name}-${idx}`} className="flex items-center gap-3">
                         <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                           {idx + 1}
                         </span>
                         <span className="flex-1 font-medium">{item.name}</span>
-                        <span className="text-muted-foreground">{Math.floor(Math.random() * 50 + 20)} vendus</span>
+                        <span className="text-muted-foreground">{item.quantity} vendu{item.quantity > 1 ? 's' : ''}</span>
                       </div>
                     ))}
                   </div>
@@ -670,15 +749,15 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <span>Chiffre d'affaires du mois</span>
-                      <span className="font-bold">2,450.00 €</span>
+                      <span className="font-bold">{dashboardMetrics.monthlyRevenue.toFixed(2)} €</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <span>Taux de commission</span>
-                      <span className="font-bold">5%</span>
+                      <span className="font-bold">{dashboardMetrics.monthlyCommissionRate.toFixed(1)}%</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
                       <span className="font-medium">Commission à payer</span>
-                      <span className="font-bold text-primary">122.50 €</span>
+                      <span className="font-bold text-primary">{dashboardMetrics.monthlyFees.toFixed(2)} €</span>
                     </div>
                   </div>
                 </CardContent>

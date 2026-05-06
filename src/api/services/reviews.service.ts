@@ -20,6 +20,8 @@ export interface Review {
   } | null;
 }
 
+export interface MyReview extends Review {}
+
 export function mapReview(r: Review): AppReview {
   return {
     id: r.id,
@@ -36,6 +38,10 @@ export function mapReview(r: Review): AppReview {
 
 export async function getRestaurantReviews(restaurantId: string): Promise<Review[]> {
   return api.get<Review[]>(`/restaurants/${restaurantId}/reviews`);
+}
+
+export async function getMyReviews(): Promise<MyReview[]> {
+  return api.get<MyReview[]>('/reviews/me');
 }
 
 export async function createReview(

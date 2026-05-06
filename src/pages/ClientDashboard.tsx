@@ -30,6 +30,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-d
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useOrders, useCancelOrder } from '@/hooks/useOrders';
+import { useCreateReview, useMyReviews, useUpdateReview } from '@/hooks/useReviews';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/overlays';
+import { Textarea } from '@/components/ui/forms';
 import { cn } from '@/lib/utils';
 import type { OrderStatus } from '@/types';
 import type { Order as ApiOrder } from '@/api/services/orders.service';
@@ -109,11 +112,24 @@ export default function ClientDashboard() {
   const { addItem } = useCart();
   const [activeTab, setActiveTab] = useState('active');
   const [searchQuery, setSearchQuery] = useState('');
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedRestaurantForReview, setSelectedRestaurantForReview] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
 
   const { data: rawOrders = [] } = useOrders(user?.id);
+  const { data: myReviews = [] } = useMyReviews(user?.id);
   const cancelOrderMutation = useCancelOrder();
+  const createReviewMutation = useCreateReview();
+  const updateReviewMutation = useUpdateReview();
 
   const allOrders = useMemo(() => rawOrders.map(mapOrder), [rawOrders]);
+  const reviewByRestaurantId = useMemo(() => {
+    return new Map(myReviews.map((review) => [review.restaurant_id, review]));
+  }, [myReviews]);
 
   // Redirect if not authenticated
   if (!isAuthenticated) {
@@ -192,6 +208,39 @@ export default function ClientDashboard() {
 
   const handleCancelOrder = (orderId: string) => {
     cancelOrderMutation.mutate(orderId);
+  };
+
+  const openReviewDialog = (restaurantId: string, restaurantName: string) => {
+    const existingReview = reviewByRestaurantId.get(restaurantId);
+    setSelectedRestaurantForReview({ id: restaurantId, name: restaurantName });
+    setReviewRating(existingReview?.rating ?? 0);
+    setReviewComment(existingReview?.comment ?? '');
+    setReviewDialogOpen(true);
+  };
+
+  const submitReview = async () => {
+    if (!selectedRestaurantForReview || reviewRating < 1) return;
+
+    const existingReview = reviewByRestaurantId.get(selectedRestaurantForReview.id);
+
+    if (existingReview) {
+      await updateReviewMutation.mutateAsync({
+        id: existingReview.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
+    } else {
+      await createReviewMutation.mutateAsync({
+        restaurantId: selectedRestaurantForReview.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
+    }
+
+    setReviewDialogOpen(false);
+    setSelectedRestaurantForReview(null);
+    setReviewRating(0);
+    setReviewComment('');
   };
 
   const getStatusIcon = (status: OrderStatus) => {
@@ -616,6 +665,16 @@ export default function ClientDashboard() {
                                   Voir le restaurant
                                 </Button>
                               </Link>
+                              {order.status === 'completed' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openReviewDialog(order.restaurantId, order.restaurant.name)}
+                                >
+                                  <Star className="h-4 w-4 mr-1" />
+                                  {reviewByRestaurantId.has(order.restaurantId) ? 'Modifier ma note' : 'Noter'}
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -704,6 +763,64 @@ export default function ClientDashboard() {
           </div>
         </motion.div>
       </div>
+
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Noter {selectedRestaurantForReview?.name}</DialogTitle>
+            <DialogDescription>
+              Donne une note de 1 à 5 et ajoute un commentaire optionnel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setReviewRating(value)}
+                  className="p-1"
+                  aria-label={`Noter ${value} sur 5`}
+                >
+                  <Star
+                    className={cn(
+                      'h-7 w-7 transition-colors',
+                      value <= reviewRating ? 'fill-warning text-warning' : 'text-muted-foreground/40'
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
+
+            <Textarea
+              placeholder="Ton commentaire (optionnel)"
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              rows={4}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant="hero"
+              onClick={() => void submitReview()}
+              disabled={
+                reviewRating < 1 ||
+                createReviewMutation.isPending ||
+                updateReviewMutation.isPending
+              }
+            >
+              {createReviewMutation.isPending || updateReviewMutation.isPending
+                ? 'Envoi...'
+                : 'Envoyer mon avis'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -25,6 +25,14 @@ export function useReviews(restaurantId: string) {
   });
 }
 
+export function useMyReviews(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['my-reviews', userId],
+    queryFn: () => reviewsService.getMyReviews(),
+    enabled: !!userId,
+  });
+}
+
 /**
  * Hook pour créer un nouvel avis
  */
@@ -39,6 +47,7 @@ export function useCreateReview() {
       queryClient.invalidateQueries({ queryKey: ['reviews', variables.restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', variables.restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
       toast({
         title: 'Avis publié',
         description: 'Merci pour votre retour !',
@@ -67,6 +76,7 @@ export function useUpdateReview() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', data.restaurant_id] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.restaurant_id] });
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
       toast({
         title: 'Avis mis à jour',
         description: 'Votre avis a été modifié.',
@@ -95,6 +105,7 @@ export function useDeleteReview() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', data.restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['restaurant', data.restaurantId] });
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
       toast({
         title: 'Avis supprimé',
         description: 'Votre avis a été supprimé.',
