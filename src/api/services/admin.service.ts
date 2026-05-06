@@ -70,6 +70,22 @@ export interface AdminReview {
   profiles?: { user_id: string; first_name: string; last_name: string } | null;
 }
 
+export interface AdminPromotion {
+  id: string;
+  title: string;
+  description: string | null;
+  code: string;
+  scope: 'global' | 'restaurant';
+  restaurant_id: string | null;
+  discount_percent: number;
+  starts_at: string | null;
+  expires_at: string;
+  min_order_amount: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export const adminService = {
   getStats: () => api.get<AdminStats>('/admin/stats'),
   getUsers: () => api.get<AdminUser[]>('/admin/users'),
@@ -83,4 +99,10 @@ export const adminService = {
   getOrders: () => api.get<AdminOrder[]>('/admin/orders'),
   getReviews: () => api.get<AdminReview[]>('/admin/reviews'),
   deleteReview: (id: string) => api.delete<void>(`/admin/reviews/${id}`),
+  getPromotions: () => api.get<AdminPromotion[]>('/admin/promotions'),
+  createPromotion: (payload: Omit<AdminPromotion, 'id' | 'created_at' | 'updated_at'>) =>
+    api.post<AdminPromotion>('/admin/promotions', payload),
+  updatePromotion: (id: string, payload: Partial<AdminPromotion>) =>
+    api.put<AdminPromotion>(`/admin/promotions/${id}`, payload),
+  deletePromotion: (id: string) => api.delete<void>(`/admin/promotions/${id}`),
 };

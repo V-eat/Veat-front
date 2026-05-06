@@ -31,6 +31,7 @@ import AdminRestaurants from "./pages/admin/AdminRestaurants";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminPromotions from "./pages/admin/AdminPromotions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +73,7 @@ const App = () => (
                   <Route path="restaurants" element={<AdminRestaurants />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="reviews" element={<AdminReviews />} />
+                  <Route path="promotions" element={<AdminPromotions />} />
                   <Route path="analytics" element={<AdminAnalytics />} />
                 </Route>
               </Route>

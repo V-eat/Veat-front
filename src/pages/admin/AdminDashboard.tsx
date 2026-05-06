@@ -6,6 +6,7 @@ import {
   ShoppingBag,
   MessageSquare,
   BarChart3,
+  TicketPercent,
   LogOut,
   ChevronLeft
 } from 'lucide-react';
@@ -31,6 +32,7 @@ const menuItems = [
   { title: 'Restaurants', url: '/admin/restaurants', icon: Store },
   { title: 'Commandes', url: '/admin/orders', icon: ShoppingBag },
   { title: 'Avis', url: '/admin/reviews', icon: MessageSquare },
+  { title: 'Promotions', url: '/admin/promotions', icon: TicketPercent },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
 ];
 

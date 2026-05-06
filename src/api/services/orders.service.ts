@@ -26,6 +26,11 @@ export interface Order {
   special_instructions: string | null;
   table_id?: string | null;
   released_to_restaurant?: boolean;
+  promotion_id?: string | null;
+  promotion_code?: string | null;
+  discount_amount?: number | null;
+  loyalty_points_used?: number | null;
+  loyalty_discount_amount?: number | null;
   created_at: string;
   updated_at: string;
   restaurants?: {

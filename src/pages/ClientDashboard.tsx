@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useOrders, useCancelOrder } from '@/hooks/useOrders';
 import { useCreateReview, useMyReviews, useUpdateReview } from '@/hooks/useReviews';
+import { useDynamicPromotions, useLoyaltySummary, useRecommendations } from '@/hooks/useEngagement';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/overlays';
 import { Textarea } from '@/components/ui/forms';
 import { cn } from '@/lib/utils';
@@ -100,7 +101,7 @@ function mapOrder(o: ApiOrder) {
     restaurant: {
       id: o.restaurants?.id ?? o.restaurant_id,
       name: o.restaurants?.name ?? 'Restaurant',
-      imageUrl: o.restaurants?.image_url ?? 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+      imageUrl: o.restaurants?.image_url ?? '/placeholder.svg',
       address: o.restaurants?.address ?? '',
     },
   };
@@ -122,6 +123,9 @@ export default function ClientDashboard() {
 
   const { data: rawOrders = [] } = useOrders(user?.id);
   const { data: myReviews = [] } = useMyReviews(user?.id);
+  const { data: loyaltySummary } = useLoyaltySummary(user?.id);
+  const { data: recommendationData } = useRecommendations(user?.id);
+  const { data: promotions = [] } = useDynamicPromotions(user?.id);
   const cancelOrderMutation = useCancelOrder();
   const createReviewMutation = useCreateReview();
   const updateReviewMutation = useUpdateReview();
@@ -370,6 +374,71 @@ export default function ClientDashboard() {
                   <p className="text-xs text-muted-foreground">Restaurant favori</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Engagement Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8"
+        >
+          <Card className="shadow-veat">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Fidélité plateforme</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              <p className="text-2xl font-bold text-primary">{loyaltySummary?.global.points ?? 0} pts</p>
+              <p className="text-sm text-muted-foreground">
+                Niveau: {loyaltySummary?.global.currentTier ?? 'Bronze'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {loyaltySummary?.global.nextTier
+                  ? `${loyaltySummary.global.pointsToNextTier} pts pour ${loyaltySummary.global.nextTier}`
+                  : 'Niveau maximum atteint'}
+              </p>
+              {loyaltySummary?.restaurants?.[0] && (
+                <p className="text-xs text-muted-foreground pt-2">
+                  Top resto: {loyaltySummary.restaurants[0].restaurant_name} ({loyaltySummary.restaurants[0].points} pts)
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-veat">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Recommandé pour toi</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {recommendationData?.restaurants?.slice(0, 2).map((restaurant) => (
+                <Link key={restaurant.id} to={`/restaurant/${restaurant.id}`} className="block rounded-lg border border-border p-3 hover:bg-muted/40 transition-colors">
+                  <p className="font-medium text-sm">{restaurant.name}</p>
+                  <p className="text-xs text-muted-foreground">{restaurant.reason}</p>
+                </Link>
+              ))}
+              {!recommendationData?.restaurants?.length && (
+                <p className="text-sm text-muted-foreground">Aucune recommandation disponible pour le moment.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-veat">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Promotions pilotées</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {promotions.slice(0, 2).map((promotion) => (
+                <div key={promotion.id} className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="font-medium text-sm">{promotion.title}</p>
+                  <p className="text-xs text-muted-foreground mb-1">{promotion.description}</p>
+                  <p className="text-xs font-semibold text-primary">Code: {promotion.code}</p>
+                </div>
+              ))}
+              {!promotions.length && (
+                <p className="text-sm text-muted-foreground">Aucune promotion disponible pour le moment.</p>
+              )}
             </CardContent>
           </Card>
         </motion.div>

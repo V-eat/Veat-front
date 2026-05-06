@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { adminService, AdminStats, AdminUser, AdminRestaurant, AdminOrder, AdminReview } from '@/api/services/admin.service';
+import { adminService, AdminStats, AdminUser, AdminRestaurant, AdminOrder, AdminReview, AdminPromotion } from '@/api/services/admin.service';
 
-export type { AdminStats, AdminUser, AdminRestaurant, AdminOrder, AdminReview };
+export type { AdminStats, AdminUser, AdminRestaurant, AdminOrder, AdminReview, AdminPromotion };
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
@@ -122,5 +122,52 @@ export function useDeleteReview() {
     onError: (err: Error) => {
       toast.error(err.message || 'Erreur lors de la suppression');
     },
+  });
+}
+
+// ─── Promotions ────────────────────────────────────────────────────────────────
+
+export function useAdminPromotions() {
+  return useQuery({
+    queryKey: ['admin-promotions'],
+    queryFn: () => adminService.getPromotions(),
+  });
+}
+
+export function useCreatePromotion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<AdminPromotion, 'id' | 'created_at' | 'updated_at'>) =>
+      adminService.createPromotion(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-promotions'] });
+      toast.success('Promotion créée');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Erreur lors de la création'),
+  });
+}
+
+export function useUpdatePromotion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<AdminPromotion> }) =>
+      adminService.updatePromotion(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-promotions'] });
+      toast.success('Promotion mise à jour');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Erreur lors de la mise à jour'),
+  });
+}
+
+export function useDeletePromotion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.deletePromotion(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-promotions'] });
+      toast.success('Promotion supprimée');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Erreur lors de la suppression'),
   });
 }

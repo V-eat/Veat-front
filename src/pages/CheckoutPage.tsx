@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useRestaurant } from '@/hooks/useRestaurants';
 import { createPaymentIntent } from '@/api/services/stripe.service';
+import { validateLoyaltyUsage, validatePromotionCode } from '@/api/services/engagement.service';
 import { toast } from 'sonner';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
@@ -100,11 +101,28 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoValidation, setPromoValidation] = useState<{
+    promotionId: string;
+    code: string;
+    discountAmount: number;
+  } | null>(null);
+  const [pointsToUseInput, setPointsToUseInput] = useState('');
+  const [loyaltyValidation, setLoyaltyValidation] = useState<{
+    pointsApplied: number;
+    discountAmount: number;
+  } | null>(null);
 
   const { data: restaurant } = useRestaurant(restaurantId ?? '');
   const serviceFee = 1.5;
   const rushedFee = 2.5;
-  const finalTotal = totalAmount + serviceFee + (isRushed ? rushedFee : 0);
+  const rushedPlatformShare = isRushed ? 1.0 : 0;
+  const platformOwnedAmount = serviceFee + rushedPlatformShare;
+  const subtotalWithFees = totalAmount + serviceFee + (isRushed ? rushedFee : 0);
+  const promoDiscountAmount = promoValidation?.discountAmount ?? 0;
+  const loyaltyDiscountAmount = loyaltyValidation?.discountAmount ?? 0;
+  const discountAmount = promoDiscountAmount + loyaltyDiscountAmount;
+  const finalTotal = Math.max(0, subtotalWithFees - discountAmount);
 
   if (!isAuthenticated) {
     navigate('/login?redirect=/checkout');
@@ -129,6 +147,54 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleApplyPromoCode = async () => {
+    if (!promoCode.trim() || !restaurantId) return;
+    try {
+      const result = await validatePromotionCode({
+        code: promoCode.trim().toUpperCase(),
+        restaurantId,
+        subtotal: subtotalWithFees,
+        maxPlatformDiscount: Math.max(0, platformOwnedAmount - loyaltyDiscountAmount),
+      });
+      setPromoValidation({
+        promotionId: result.promotion.id,
+        code: result.promotion.code,
+        discountAmount: result.discountAmount,
+      });
+      if (result.cappedByPlatform) {
+        toast.success(`Code appliqué avec plafond plateforme: -${result.discountAmount.toFixed(2)} €`);
+      } else {
+        toast.success(`Code appliqué: -${result.discountAmount.toFixed(2)} €`);
+      }
+    } catch (error: any) {
+      setPromoValidation(null);
+      toast.error(error?.message || 'Code promo invalide');
+    }
+  };
+
+  const handleApplyLoyaltyPoints = async () => {
+    const pointsToUse = Number(pointsToUseInput);
+    if (!Number.isFinite(pointsToUse) || pointsToUse <= 0) return;
+    try {
+      const result = await validateLoyaltyUsage({
+        pointsToUse,
+        maxPlatformDiscount: Math.max(0, platformOwnedAmount - promoDiscountAmount),
+      });
+      setLoyaltyValidation({
+        pointsApplied: result.pointsApplied,
+        discountAmount: result.discountAmount,
+      });
+      if (result.cappedByPlatform) {
+        toast.success(`Points appliqués avec plafond plateforme: -${result.discountAmount.toFixed(2)} €`);
+      } else {
+        toast.success(`Points appliqués: -${result.discountAmount.toFixed(2)} €`);
+      }
+    } catch (error: any) {
+      setLoyaltyValidation(null);
+      toast.error(error?.message || "Impossible d'appliquer les points");
+    }
+  };
+
   const handlePaymentSuccess = async () => {
     if (!user || !restaurantId || !arrivalTime) return;
     try {
@@ -149,6 +215,11 @@ export default function CheckoutPage() {
         is_rushed: isRushed,
         special_instructions: specialInstructions || null,
         table_id: tableId ?? null,
+        promotion_id: promoValidation?.promotionId,
+        promotion_code: promoValidation?.code,
+        discount_amount: discountAmount,
+        loyalty_points_used: loyaltyValidation?.pointsApplied ?? 0,
+        loyalty_discount_amount: loyaltyDiscountAmount,
       });
 
       setOrderSuccess(true);
@@ -275,6 +346,51 @@ export default function CheckoutPage() {
                     <span className="text-primary font-medium">+{rushedFee.toFixed(2)} €</span>
                   </div>
                 )}
+                <div className="pt-2">
+                  <p className="text-sm font-medium mb-2">Code promo</p>
+                  <div className="flex gap-2">
+                    <input
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      placeholder="Entrez votre code"
+                      className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => void handleApplyPromoCode()}>
+                      Appliquer
+                    </Button>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <p className="text-sm font-medium mb-2">Points fidélité</p>
+                  <div className="flex gap-2">
+                    <input
+                      value={pointsToUseInput}
+                      onChange={(e) => setPointsToUseInput(e.target.value)}
+                      placeholder="Nombre de points"
+                      type="number"
+                      min={0}
+                      className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => void handleApplyLoyaltyPoints()}>
+                      Utiliser
+                    </Button>
+                  </div>
+                </div>
+                {promoDiscountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Réduction ({promoValidation?.code})</span>
+                    <span className="text-success font-medium">-{promoDiscountAmount.toFixed(2)} €</span>
+                  </div>
+                )}
+                {loyaltyDiscountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Réduction fidélité ({loyaltyValidation?.pointsApplied} pts)</span>
+                    <span className="text-success font-medium">-{loyaltyDiscountAmount.toFixed(2)} €</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Les réductions sont financées par la plateforme et n'impactent pas la part restaurateur.
+                </p>
                 <div className="flex justify-between font-bold text-lg pt-3 border-t border-border">
                   <span>Total</span>
                   <span className="text-primary">{finalTotal.toFixed(2)} €</span>
