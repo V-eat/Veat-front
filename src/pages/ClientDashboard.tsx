@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
-import { Card, CardContent } from '@/components/ui/data-display';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-display';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
 import { useAuth } from '@/contexts/useAuthContext';
 import { useCart } from '@/contexts/CartContext';
