@@ -195,6 +195,23 @@ export function useAuth() {
   };
 
   /**
+   * Connexion via OAuth (Google / Apple)
+   */
+  const signInWithOAuth = async (provider: authService.OAuthProvider, redirectTo: string) => {
+    try {
+      const data = await authService.signInWithOAuth(provider, redirectTo);
+      return data;
+    } catch (error: any) {
+      toast({
+        title: 'Erreur de connexion',
+        description: error.message,
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  /**
    * Déconnexion de l'utilisateur
    */
   const signOut = async () => {
@@ -278,6 +295,7 @@ export function useAuth() {
     isAdmin: role === 'admin',
     signUp,
     signIn,
+    signInWithOAuth,
     signOut,
     resetPassword,
     updateProfile,

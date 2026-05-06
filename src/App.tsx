@@ -14,6 +14,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import RegisterRestaurateurPage from "./pages/RegisterRestaurateurPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import ProfilePage from "./pages/ProfilePage";
 import EditProfilePage from "./pages/profile/EditProfilePage";
 import AllergiesPage from "./pages/profile/AllergiesPage";
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/register-restaurant" element={<RegisterRestaurateurPage />} />
               <Route path="/partner" element={<RegisterRestaurateurPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
               {/* Restaurant dashboard without main layout */}
               <Route element={<ProtectedRoute allowedRoles={["restaurateur", "admin"]} />}>

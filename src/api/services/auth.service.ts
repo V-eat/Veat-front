@@ -13,6 +13,8 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/api/client';
 
+export type OAuthProvider = 'google' | 'apple';
+
 export interface NotificationPreferences {
   email_orders: boolean;
   email_promotions: boolean;
@@ -103,6 +105,24 @@ export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Connexion via OAuth (Google / Apple).
+ *
+ * Le redirectTo doit pointer vers une route front qui fera l'échange du code (PKCE)
+ * puis redirigera l'utilisateur (ex: /auth/callback?redirect=/checkout).
+ */
+export async function signInWithOAuth(provider: OAuthProvider, redirectTo: string) {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+    },
   });
 
   if (error) throw error;
