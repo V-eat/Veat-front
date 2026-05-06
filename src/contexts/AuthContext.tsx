@@ -30,12 +30,12 @@ interface AuthContextType {
   isAdmin: boolean;
   viewMode: ViewMode;
   toggleViewMode: () => void;
-  signUp: (email: string, password: string, metadata: { first_name: string; last_name: string; role?: 'client' | 'restaurateur' }) => Promise<any>;
-  signIn: (email: string, password: string) => Promise<any>;
-  signInWithOAuth: (provider: 'google' | 'apple', redirectTo: string) => Promise<any>;
+  signUp: (email: string, password: string, metadata: { first_name: string; last_name: string; role?: 'client' | 'restaurateur' }) => Promise<unknown>;
+  signIn: (email: string, password: string) => Promise<unknown>;
+  signInWithOAuth: (provider: 'google', redirectTo: string) => Promise<unknown>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  updateProfile: (updates: Partial<Profile>) => Promise<any>;
+  updateProfile: (updates: Partial<Profile>) => Promise<unknown>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

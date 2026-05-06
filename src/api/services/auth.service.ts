@@ -13,7 +13,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/api/client';
 
-export type OAuthProvider = 'google' | 'apple';
+export type OAuthProvider = 'google';
 
 export interface NotificationPreferences {
   email_orders: boolean;
