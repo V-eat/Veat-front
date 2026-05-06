@@ -36,7 +36,7 @@ import { useUpdateRestaurant } from '@/hooks/useRestaurants';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { createStripeConnectOnboardingLink, getStripeConnectStatus } from '@/api/services/stripe.service';
-import type { Order, OpeningHours, TimeSlot, Restaurant, MenuItem } from '@/types';
+import { ALLERGEN_LABELS, type Allergen, type Order, type OpeningHours, type TimeSlot, type Restaurant, type MenuItem } from '@/types';
 
 const DAYS = [
   { key: 'monday', label: 'Lundi' },
@@ -59,6 +59,20 @@ interface FullDashboardViewProps {
   restaurant?: Restaurant;
   openingHours?: OpeningHours;
 }
+
+const DISH_ALLERGENS: Allergen[] = [
+  'eggs',
+  'milk',
+  'mustard',
+  'peanuts',
+  'crustaceans',
+  'fish',
+  'sesame',
+  'soybeans',
+  'sulphites',
+  'nuts',
+  'gluten',
+];
 
 export function FullDashboardView({ orders, restaurantId, restaurant, openingHours: initialOpeningHours }: FullDashboardViewProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'menu' | 'stats' | 'settings'>('overview');
@@ -104,14 +118,14 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
     description: '',
     price: 0,
     category: '',
-    allergens: '',
+    allergens: [] as Allergen[],
     imageUrl: '',
     isAvailable: true,
   });
 
   const openCreateMenuItemDialog = () => {
     setEditingMenuItem(null);
-    setMenuItemForm({ name: '', description: '', price: 0, category: '', allergens: '', imageUrl: '', isAvailable: true });
+    setMenuItemForm({ name: '', description: '', price: 0, category: '', allergens: [], imageUrl: '', isAvailable: true });
     if (menuItemImageInputRef.current) menuItemImageInputRef.current.value = '';
     setMenuItemDialogOpen(true);
   };
@@ -123,7 +137,7 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
       description: item.description,
       price: item.price,
       category: item.category,
-      allergens: Array.isArray(item.allergens) ? item.allergens.join(', ') : '',
+      allergens: Array.isArray(item.allergens) ? item.allergens : [],
       imageUrl: item.imageUrl ?? '',
       isAvailable: item.isAvailable,
     });
@@ -198,9 +212,7 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
 
   const saveMenuItem = async () => {
     if (!restaurantId) return;
-    const allergensArray = menuItemForm.allergens
-      ? menuItemForm.allergens.split(',').map(s => s.trim()).filter(Boolean)
-      : [];
+    const allergensArray = menuItemForm.allergens;
 
     if (editingMenuItem) {
       await updateMenuItem.mutateAsync({
@@ -953,13 +965,33 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
               </Select>
             </div>
             <div>
-              <Label htmlFor="mi-allergens">Allergènes (séparés par des virgules)</Label>
-              <Input
-                id="mi-allergens"
-                value={menuItemForm.allergens}
-                onChange={(e) => setMenuItemForm(prev => ({ ...prev, allergens: e.target.value }))}
-                placeholder="gluten, lait, œufs..."
-              />
+              <Label>Allergènes</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {DISH_ALLERGENS.map((allergen) => {
+                  const selected = menuItemForm.allergens.includes(allergen);
+                  const label = ALLERGEN_LABELS[allergen];
+                  return (
+                    <Button
+                      key={allergen}
+                      type="button"
+                      variant={selected ? 'default' : 'outline'}
+                      size="sm"
+                      aria-pressed={selected}
+                      className="rounded-full"
+                      onClick={() => {
+                        setMenuItemForm((prev) => {
+                          const next = prev.allergens.includes(allergen)
+                            ? prev.allergens.filter((a) => a !== allergen)
+                            : [...prev.allergens, allergen];
+                          return { ...prev, allergens: next };
+                        });
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
             <div>
               <Label htmlFor="mi-image">URL de l'image</Label>

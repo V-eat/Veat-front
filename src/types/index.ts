@@ -96,17 +96,17 @@ export type Allergen =
   | 'molluscs';
 
 export const ALLERGEN_LABELS: Record<Allergen, string> = {
-  gluten: 'Gluten',
-  crustaceans: 'Crustacés',
-  eggs: 'Œufs',
-  fish: 'Poisson',
-  peanuts: 'Arachides',
+  gluten: 'Blé et triticale',
+  crustaceans: 'Mollusques et crustacés',
+  eggs: 'Œuf',
+  fish: 'Poissons',
+  peanuts: 'Arachide',
   soybeans: 'Soja',
   milk: 'Lait',
-  nuts: 'Fruits à coque',
+  nuts: 'Noix',
   celery: 'Céleri',
   mustard: 'Moutarde',
-  sesame: 'Sésame',
+  sesame: 'Graines de sésame',
   sulphites: 'Sulfites',
   lupin: 'Lupin',
   molluscs: 'Mollusques',
@@ -131,7 +131,6 @@ export interface Order {
   isRushed?: boolean;
   createdAt: string;
   updatedAt: string;
-  tableId?: string | null;
   virtual_tables?: {
     id: string;
     join_code: string;
