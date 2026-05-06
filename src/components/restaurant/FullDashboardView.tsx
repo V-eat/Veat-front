@@ -198,10 +198,10 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
         title: 'Image televersee',
         description: 'La photo du plat a ete envoyee avec succes.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Echec du televersement',
-        description: error?.message || 'Verifiez le bucket Supabase et vos permissions Storage.',
+        description: error instanceof Error ? error.message : 'Verifiez le bucket Supabase et vos permissions Storage.',
         variant: 'destructive',
       });
     } finally {
@@ -222,8 +222,8 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
         price: menuItemForm.price,
         category: menuItemForm.category,
         allergens: allergensArray,
-        image_url: menuItemForm.imageUrl || null,
-        is_available: menuItemForm.isAvailable,
+        imageUrl: menuItemForm.imageUrl || undefined,
+        isAvailable: menuItemForm.isAvailable,
       });
     } else {
       await createMenuItem.mutateAsync({
@@ -233,8 +233,8 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
         price: menuItemForm.price,
         category: menuItemForm.category,
         allergens: allergensArray,
-        image_url: menuItemForm.imageUrl || null,
-        is_available: menuItemForm.isAvailable,
+        imageUrl: menuItemForm.imageUrl || undefined,
+        isAvailable: menuItemForm.isAvailable,
       });
     }
     setMenuItemDialogOpen(false);
@@ -246,7 +246,7 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
   };
 
   const handleToggleAvailability = (item: MenuItem) => {
-    updateMenuItem.mutate({ id: item.id, is_available: !item.isAvailable });
+    updateMenuItem.mutate({ id: item.id, isAvailable: !item.isAvailable });
   };
 
   const openHoursDialog = () => {
@@ -365,10 +365,10 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
         title: 'Image televersee',
         description: 'La photo du restaurant a ete envoyee avec succes.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Echec du televersement',
-        description: error?.message || 'Verifiez le bucket Supabase et vos permissions Storage.',
+        description: error instanceof Error ? error.message : 'Verifiez le bucket Supabase et vos permissions Storage.',
         variant: 'destructive',
       });
     } finally {
@@ -422,10 +422,10 @@ export function FullDashboardView({ orders, restaurantId, restaurant, openingHou
       const currentUrl = window.location.href;
       const { url } = await createStripeConnectOnboardingLink(restaurantId, currentUrl, currentUrl);
       window.location.assign(url);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Stripe Connect indisponible',
-        description: error?.message || 'Impossible de demarrer l onboarding Stripe.',
+        description: error instanceof Error ? error.message : 'Impossible de demarrer l onboarding Stripe.',
         variant: 'destructive',
       });
       setIsRedirectingStripe(false);

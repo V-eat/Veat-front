@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { ALLERGEN_LABELS, Allergen } from '@/types';
 
 const ALLERGENS = Object.keys(ALLERGEN_LABELS) as Allergen[];

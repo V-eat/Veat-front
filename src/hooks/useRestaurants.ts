@@ -13,7 +13,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import * as restaurantsService from '@/api/services/restaurants.service';
 import { useFavorites } from '@/hooks/useFavorites';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
+import type { Favorite } from '@/api/services/favorites.service';
 
 export type { Restaurant } from '@/api/services/restaurants.service';
 export type { RestaurantFilters } from '@/api/services/restaurants.service';
@@ -36,7 +37,7 @@ export function useRestaurantsWithFavorites(filters?: restaurantsService.Restaur
   const { data: restaurants, ...restaurantsQuery } = useRestaurants(filters);
   const { data: favorites } = useFavorites(user?.id);
 
-  const favoriteIds = new Set((favorites ?? []).map((f: any) => f.restaurant_id));
+  const favoriteIds = new Set((favorites ?? []).map((f: Favorite) => f.restaurant_id));
   const data = restaurants?.map((r) => ({ ...r, isFavorite: favoriteIds.has(r.id) }));
 
   return { ...restaurantsQuery, data };
@@ -73,7 +74,7 @@ export function useCreateRestaurant() {
 
   return useMutation({
     mutationFn: (restaurant: Record<string, unknown>) =>
-      restaurantsService.createRestaurant(restaurant as any),
+      restaurantsService.createRestaurant(restaurant as unknown as Parameters<typeof restaurantsService.createRestaurant>[0]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['restaurants'] });
       queryClient.invalidateQueries({ queryKey: ['my-restaurants'] });
@@ -111,7 +112,7 @@ export function useUpdateRestaurant() {
 
   return useMutation({
     mutationFn: ({ id, ...updates }: { id: string } & Record<string, unknown>) =>
-      restaurantsService.updateRestaurant(id, updates as any),
+      restaurantsService.updateRestaurant(id, updates as unknown as Parameters<typeof restaurantsService.updateRestaurant>[1]),
     onSuccess: (data) => {
       queryClient.setQueriesData({ queryKey: ['restaurants'] }, (oldData: unknown) => {
         return mergeRestaurantInList(oldData as restaurantsService.Restaurant[] | undefined, data);

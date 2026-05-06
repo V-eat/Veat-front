@@ -12,33 +12,10 @@
  * - Des helpers pour vérifier le type d'utilisateur (isClient, isRestaurateur, etc.)
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth, Profile } from '@/hooks/useAuth';
-import { useViewMode, ViewMode } from '@/hooks/useViewMode';
-import { User, Session } from '@supabase/supabase-js';
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  profile: Profile | null;
-  role: 'client' | 'restaurateur' | 'admin' | null;
-  loading: boolean;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  isRestaurateur: boolean;
-  isClient: boolean;
-  isAdmin: boolean;
-  viewMode: ViewMode;
-  toggleViewMode: () => void;
-  signUp: (email: string, password: string, metadata: { first_name: string; last_name: string; role?: 'client' | 'restaurateur' }) => Promise<unknown>;
-  signIn: (email: string, password: string) => Promise<unknown>;
-  signInWithOAuth: (provider: 'google', redirectTo: string) => Promise<unknown>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updateProfile: (updates: Partial<Profile>) => Promise<unknown>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import React, { ReactNode } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useViewMode } from '@/hooks/useViewMode';
+import { AuthContext } from '@/contexts/AuthContextBase';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -57,14 +34,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
-export function useAuthContext() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
-  }
-  return context;
-}
-
-// Alias for backward compatibility
-export { useAuthContext as useAuth };

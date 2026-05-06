@@ -1,11 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ShoppingBag,
   Clock,
-  MapPin,
-  ChevronRight,
   Star,
   TrendingUp,
   Calendar,
@@ -15,7 +13,6 @@ import {
   Bell,
   Settings,
   ChevronLeft,
-  Filter,
   Search,
   CheckCircle2,
   XCircle,
@@ -25,9 +22,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-display';
+import { Card, CardContent } from '@/components/ui/data-display';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/data-display';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useOrders, useCancelOrder } from '@/hooks/useOrders';
 import { useCreateReview, useMyReviews, useUpdateReview } from '@/hooks/useReviews';
@@ -36,6 +33,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/forms';
 import { cn } from '@/lib/utils';
 import type { OrderStatus } from '@/types';
+import type { MenuItem } from '@/types';
 import type { Order as ApiOrder } from '@/api/services/orders.service';
 
 const ORDER_STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; description: string }> = {
@@ -135,6 +133,47 @@ export default function ClientDashboard() {
     return new Map(myReviews.map((review) => [review.restaurant_id, review]));
   }, [myReviews]);
 
+  const activeOrders = useMemo(() => {
+    return allOrders.filter((o) => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status));
+  }, [allOrders]);
+
+  const pastOrders = useMemo(() => {
+    return allOrders.filter((o) => ['completed', 'cancelled'].includes(o.status));
+  }, [allOrders]);
+
+  const filteredPastOrders = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return pastOrders.filter(
+      (o) =>
+        o.restaurant.name.toLowerCase().includes(q) ||
+        o.id.toLowerCase().includes(q)
+    );
+  }, [pastOrders, searchQuery]);
+
+  const stats = useMemo(() => {
+    const completedOrders = allOrders.filter((o) => o.status === 'completed');
+    const totalSpent = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const avgOrderValue = completedOrders.length > 0 ? totalSpent / completedOrders.length : 0;
+
+    // Find favorite restaurant
+    const restaurantCounts: Record<string, { count: number; name: string }> = {};
+    completedOrders.forEach((o) => {
+      if (!restaurantCounts[o.restaurantId]) {
+        restaurantCounts[o.restaurantId] = { count: 0, name: o.restaurant.name };
+      }
+      restaurantCounts[o.restaurantId].count += 1;
+    });
+    const favoriteEntry = Object.values(restaurantCounts).sort((a, b) => b.count - a.count)[0];
+
+    return {
+      totalOrders: completedOrders.length,
+      totalSpent,
+      avgOrderValue,
+      favoriteRestaurantName: favoriteEntry?.name ?? null,
+      activeOrdersCount: activeOrders.length,
+    };
+  }, [allOrders, activeOrders]);
+
   // Redirect if not authenticated
   if (!isAuthenticated) {
     return (
@@ -163,49 +202,9 @@ export default function ClientDashboard() {
     );
   }
 
-  // Separate active and past orders
-  const activeOrders = allOrders.filter(
-    o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
-  );
-  const pastOrders = allOrders.filter(
-    o => ['completed', 'cancelled'].includes(o.status)
-  );
-
-  // Filter orders based on search
-  const filteredPastOrders = pastOrders.filter(
-    o =>
-      o.restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    const completedOrders = allOrders.filter(o => o.status === 'completed');
-    const totalSpent = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const avgOrderValue = completedOrders.length > 0 ? totalSpent / completedOrders.length : 0;
-
-    // Find favorite restaurant
-    const restaurantCounts: Record<string, { count: number; name: string }> = {};
-    completedOrders.forEach(o => {
-      if (!restaurantCounts[o.restaurantId]) {
-        restaurantCounts[o.restaurantId] = { count: 0, name: o.restaurant.name };
-      }
-      restaurantCounts[o.restaurantId].count += 1;
-    });
-    const favoriteEntry = Object.values(restaurantCounts).sort((a, b) => b.count - a.count)[0];
-
-    return {
-      totalOrders: completedOrders.length,
-      totalSpent,
-      avgOrderValue,
-      favoriteRestaurantName: favoriteEntry?.name ?? null,
-      activeOrdersCount: activeOrders.length,
-    };
-  }, [allOrders]);
-
   const handleReorder = (order: ReturnType<typeof mapOrder>) => {
     order.items.forEach(item => {
-      addItem(item.menuItem as any, item.quantity);
+      addItem(item.menuItem as MenuItem, item.quantity);
     });
     navigate(`/restaurant/${order.restaurantId}`);
   };

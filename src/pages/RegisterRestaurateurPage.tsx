@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/forms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/forms';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/api/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const CUISINE_TYPES = [
@@ -261,11 +261,11 @@ export default function RegisterRestaurateurPage() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         navigate('/dashboard');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
       toast({
         title: 'Erreur',
-        description: error.message || 'Une erreur est survenue',
+        description: error instanceof Error ? error.message : 'Une erreur est survenue',
         variant: 'destructive',
       });
     } finally {

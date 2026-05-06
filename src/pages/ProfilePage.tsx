@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  User,
   Settings,
   Heart,
   ShoppingBag,
@@ -13,8 +12,7 @@ import {
   Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
-import { useAuth } from '@/contexts/AuthContext';
-import { ALLERGEN_LABELS, Allergen } from '@/types';
+import { useAuth } from '@/contexts/useAuthContext';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -25,7 +23,7 @@ export default function ProfilePage() {
     if (!loading && !isAuthenticated) {
       navigate('/login');
     }
-  }, [loading, isAuthenticated]); // Removed navigate from dependencies
+  }, [loading, isAuthenticated, navigate]);
 
   if (loading) {
     return (

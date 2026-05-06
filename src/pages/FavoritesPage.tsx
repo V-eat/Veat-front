@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, Heart } from 'lucide-react';
 import { Input } from '@/components/ui/forms';
 import { RestaurantCard } from '@/components/restaurant/RestaurantCard';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useFavorites } from '@/hooks/useFavorites';
 import { mapFavoriteToRestaurant } from '@/api/services/favorites.service';
 import { Link } from 'react-router-dom';

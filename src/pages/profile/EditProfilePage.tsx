@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Camera, User } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EditProfilePage() {
@@ -42,7 +42,7 @@ export default function EditProfilePage() {
       if (error) throw error;
       const { data } = supabase.storage.from('avatars').getPublicUrl(path);
       setAvatarUrl(data.publicUrl);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
     } finally {
       setUploading(false);

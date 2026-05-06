@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/forms';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { ProfileSettings } from '@/api/services/auth.service';
@@ -66,8 +66,8 @@ export default function SettingsPage() {
       toast({ title: 'Mot de passe modifié', description: 'Votre mot de passe a été mis à jour.' });
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Une erreur est survenue', variant: 'destructive' });
     } finally {
       setChangingPwd(false);
     }

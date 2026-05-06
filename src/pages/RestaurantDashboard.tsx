@@ -11,20 +11,21 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useMyRestaurants } from '@/hooks/useRestaurants';
 import { useRestaurantOrders, useUpdateOrderStatus, useCancelOrder } from '@/hooks/useOrders';
 import { OrderManagementView } from '@/components/restaurant/OrderManagementView';
 import { FullDashboardView } from '@/components/restaurant/FullDashboardView';
 import type { Order, OrderStatus } from '@/types';
+import type { Order as ApiOrder, OrderItem as ApiOrderItem } from '@/api/services/orders.service';
 
 // Map backend order (snake_case) to frontend Order (@/types - camelCase)
-function mapOrder(o: any): Order {
+function mapOrder(o: ApiOrder): Order {
   return {
     id: o.id,
     restaurantId: o.restaurant_id,
     userId: o.user_id ?? '',
-    items: (o.items ?? []).map((item: any) => ({
+    items: (o.items ?? []).map((item: ApiOrderItem) => ({
       menuItem: {
         id: item.menuItemId,
         restaurantId: o.restaurant_id,
@@ -199,7 +200,7 @@ export default function RestaurantDashboard() {
   const playOrderAlert = async (isRushed: boolean) => {
     if (typeof window === 'undefined') return;
 
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
 
     if (!audioContextRef.current) {
@@ -248,7 +249,7 @@ export default function RestaurantDashboard() {
   useEffect(() => {
     if (!myRestaurant?.id) return;
 
-    const currentIds = new Set(rawOrders.map((order: any) => order.id));
+    const currentIds = new Set(rawOrders.map((order) => order.id));
 
     if (!hasInitializedOrdersRef.current) {
       knownOrderIdsRef.current = currentIds;
@@ -256,10 +257,10 @@ export default function RestaurantDashboard() {
       return;
     }
 
-    const newOrders = rawOrders.filter((order: any) => !knownOrderIdsRef.current.has(order.id));
+    const newOrders = rawOrders.filter((order) => !knownOrderIdsRef.current.has(order.id));
 
     if (newOrders.length > 0) {
-      const hasRushedOrder = newOrders.some((order: any) => !!order.is_rushed);
+      const hasRushedOrder = newOrders.some((order) => !!order.is_rushed);
       void playOrderAlert(hasRushedOrder);
     }
 

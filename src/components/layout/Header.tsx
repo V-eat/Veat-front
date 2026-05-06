@@ -17,7 +17,7 @@ import { Menu, X, ShoppingBag, User, Search, Heart, ChefHat, UserCircle } from '
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

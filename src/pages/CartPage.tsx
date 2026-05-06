@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Minus, Plus, Trash2, Clock, AlertCircle, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
-import { Input } from '@/components/ui/forms';
 import { Switch } from '@/components/ui/forms';
 import { Label } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useRestaurant } from '@/hooks/useRestaurants';
 import { cn } from '@/lib/utils';
 import { GroupTableWidget } from '@/components/table/GroupTableWidget';
@@ -64,6 +63,37 @@ export default function CartPage() {
 
   const timeSlots = generateTimeSlots();
 
+  useEffect(() => {
+    if (!tableId) return;
+
+    let active = true;
+
+    const loadTableState = async () => {
+      try {
+        const table = await getTable(tableId);
+        if (!active) return;
+
+        setTableHostUserId(table.host_user_id || null);
+        const normalizedArrival = normalizeTime(table.arrival_time);
+        if (normalizedArrival) {
+          setArrivalTime(normalizedArrival);
+        }
+      } catch {
+        // Keep UX resilient if table sync fails temporarily.
+      }
+    };
+
+    void loadTableState();
+    const interval = window.setInterval(() => {
+      void loadTableState();
+    }, 7000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [tableId, setArrivalTime, setTableHostUserId]);
+
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -112,37 +142,6 @@ export default function CartPage() {
     }
     navigate('/checkout');
   };
-
-  useEffect(() => {
-    if (!tableId) return;
-
-    let active = true;
-
-    const loadTableState = async () => {
-      try {
-        const table = await getTable(tableId);
-        if (!active) return;
-
-        setTableHostUserId(table.host_user_id || null);
-        const normalizedArrival = normalizeTime(table.arrival_time);
-        if (normalizedArrival) {
-          setArrivalTime(normalizedArrival);
-        }
-      } catch {
-        // Keep UX resilient if table sync fails temporarily.
-      }
-    };
-
-    void loadTableState();
-    const interval = window.setInterval(() => {
-      void loadTableState();
-    }, 7000);
-
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, [tableId, setArrivalTime, setTableHostUserId]);
 
   const handleArrivalChange = async (value: string) => {
     const normalized = normalizeTime(value) || value;
