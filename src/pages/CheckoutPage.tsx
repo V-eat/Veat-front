@@ -166,9 +166,9 @@ export default function CheckoutPage() {
       } else {
         toast.success(`Code appliqué: -${result.discountAmount.toFixed(2)} €`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setPromoValidation(null);
-      toast.error(error?.message || 'Code promo invalide');
+      toast.error(error instanceof Error ? error.message : 'Code promo invalide');
     }
   };
 
@@ -189,9 +189,9 @@ export default function CheckoutPage() {
       } else {
         toast.success(`Points appliqués: -${result.discountAmount.toFixed(2)} €`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLoyaltyValidation(null);
-      toast.error(error?.message || "Impossible d'appliquer les points");
+      toast.error(error instanceof Error ? error.message : "Impossible d'appliquer les points");
     }
   };
 
