@@ -5,7 +5,7 @@ import { Eye, EyeOff, Mail, Lock, User, Calendar, ArrowRight } from 'lucide-reac
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
 import { Label } from '@/components/ui/forms';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 
 export default function RegisterPage() {
   const navigate = useNavigate();

@@ -3,7 +3,7 @@ import { Plus, Minus, AlertTriangle } from 'lucide-react';
 import { MenuItem, ALLERGEN_LABELS, Allergen } from '@/types';
 import { Button } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { cn } from '@/lib/utils';
 
 interface MenuItemCardProps {

@@ -7,7 +7,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { Button } from '@/components/ui/forms';
 import { Textarea } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useRestaurant } from '@/hooks/useRestaurants';
 import { createPaymentIntent } from '@/api/services/stripe.service';

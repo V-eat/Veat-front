@@ -9,7 +9,7 @@ import {
   LogOut,
   ChevronLeft
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { Button } from '@/components/ui/forms';
 import {
   Sidebar,

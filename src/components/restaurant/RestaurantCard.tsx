@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Star, Clock, MapPin, Heart } from 'lucide-react';
 import { Restaurant } from '@/types';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useToggleFavorite } from '@/hooks/useFavorites';
 
 interface RestaurantCardProps {

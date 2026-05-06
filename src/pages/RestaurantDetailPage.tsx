@@ -18,7 +18,7 @@ import { MenuItemCard } from '@/components/restaurant/MenuItemCard';
 import { useRestaurant } from '@/hooks/useRestaurants';
 import { useMenuItems } from '@/hooks/useMenuItems';
 import { useReviews } from '@/hooks/useReviews';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { useToggleFavorite, useIsFavorite } from '@/hooks/useFavorites';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';

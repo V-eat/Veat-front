@@ -3,7 +3,7 @@ import { Users, Plus, LogIn, Copy, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/forms';
 import { Input } from '@/components/ui/forms';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuthContext';
 import { createTable, joinTable, leaveTable } from '@/api/services/table.service';
 import { toast } from 'sonner';
 
