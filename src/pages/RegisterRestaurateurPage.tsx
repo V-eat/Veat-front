@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -32,6 +32,121 @@ const DAYS = [
   { key: 'sunday', label: 'Dimanche' },
 ];
 
+const FR_STREET_KEYWORDS = [
+  'rue', 'avenue', 'boulevard', 'place', 'impasse', 'allée', 'allee',
+  'chemin', 'route', 'quartier', 'faubourg', 'voie', 'villa', 'square', 'quai', 'cours',
+];
+
+const AUTOCOMPLETE_URL = (import.meta.env.VITE_ADDRESS_AUTOCOMPLETE_URL as string | undefined)?.trim() || 'https://api-adresse.data.gouv.fr/search/';
+const AUTOCOMPLETE_KEY = (import.meta.env.VITE_ADDRESS_AUTOCOMPLETE_KEY as string | undefined)?.trim();
+
+const isAddressLikelyReal = (address: string) => {
+  const normalized = address.trim();
+  if (!normalized) return false;
+  if (!/\d+/.test(normalized)) return false;
+  return FR_STREET_KEYWORDS.some((keyword) => new RegExp(`\\b${keyword}\\b`, 'i').test(normalized));
+};
+
+const getAddressAutocompleteSuggestions = async (query: string): Promise<string[]> => {
+  const url = new URL(AUTOCOMPLETE_URL);
+  url.searchParams.set('q', query);
+  if (!url.searchParams.has('limit')) {
+    url.searchParams.set('limit', '5');
+  }
+
+  if (!url.searchParams.has('autocomplete')) {
+    url.searchParams.set('autocomplete', '1');
+  }
+
+  const headers: Record<string, string> = {
+    'Accept-Language': 'fr',
+  };
+
+  if (AUTOCOMPLETE_KEY) {
+    headers['x-api-key'] = AUTOCOMPLETE_KEY;
+  }
+
+  const response = await fetch(url.toString(), {
+    headers,
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = await response.json();
+
+  if (Array.isArray(payload.features)) {
+    return payload.features
+      .map((item: unknown) => {
+        const feature = item as Record<string, unknown>;
+        const props = feature.properties as Record<string, unknown> | undefined;
+        return typeof props?.label === 'string' ? props.label : '';
+      })
+      .filter((name: unknown): name is string => typeof name === 'string' && name.length > 0);
+  }
+
+  if (Array.isArray(payload)) {
+    return payload
+      .map((item: unknown) => {
+        const entry = item as Record<string, unknown>;
+        if (typeof entry.display_name === 'string') return entry.display_name;
+        if (typeof entry.label === 'string') return entry.label;
+        if (typeof entry.name === 'string') return entry.name;
+        if (typeof entry.address === 'string') return entry.address;
+        return '';
+      })
+      .filter((name: unknown): name is string => typeof name === 'string' && name.length > 0);
+  }
+
+  return [];
+};
+
+const validateAddressWithNominatim = async (address: string): Promise<boolean> => {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=fr&q=${encodeURIComponent(
+    address.trim()
+  )}`;
+
+  const response = await fetch(url, {
+    headers: {
+      'Accept-Language': 'fr',
+      'User-Agent': 'V-EAT-App/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const results = (await response.json()) as Array<{
+    class?: string;
+    type?: string;
+  }>;
+
+  if (!Array.isArray(results) || results.length === 0) {
+    return false;
+  }
+
+  const result = results[0];
+  const validTypes = new Set([
+    'house',
+    'residential',
+    'road',
+    'building',
+    'commercial',
+    'public',
+    'apartments',
+    'farm',
+    'hotel',
+    'restaurant',
+    'retail',
+    'office',
+    'industrial',
+  ]);
+
+  return validTypes.has(result.type ?? '') || result.class === 'building' || result.class === 'highway';
+};
+
 const step1Schema = z.object({
   firstName: z.string().trim().min(2, 'Le prénom doit contenir au moins 2 caractères').max(50),
   lastName: z.string().trim().min(2, 'Le nom doit contenir au moins 2 caractères').max(50),
@@ -48,7 +163,10 @@ const step2Schema = z.object({
   description: z.string().trim().max(500, 'La description ne peut pas dépasser 500 caractères').optional(),
   cuisineType: z.string().optional(),
   phone: z.string().trim().min(10, 'Numéro de téléphone invalide').max(20),
-  address: z.string().trim().min(5, 'Adresse trop courte').max(200),
+  address: z.string().trim().min(5, 'Adresse trop courte').max(200)
+    .refine(isAddressLikelyReal, {
+      message: 'Veuillez saisir une adresse complète et valide.',
+    }),
   priceRange: z.number().min(1).max(3),
   preparationTime: z.number().min(5).max(120),
   siret: z.string().trim().regex(/^\d{14}$/, 'Le SIRET doit contenir exactement 14 chiffres'),
@@ -78,6 +196,11 @@ export default function RegisterRestaurateurPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isValidatingAddress, setIsValidatingAddress] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [isFetchingAddressSuggestions, setIsFetchingAddressSuggestions] = useState(false);
+  const addressFetchTimeout = useRef<number | null>(null);
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
     firstName: '',
@@ -100,6 +223,41 @@ export default function RegisterRestaurateurPage() {
 
   const [kbisFile, setKbisFile] = useState<File | null>(null);
   const [kbisError, setKbisError] = useState('');
+
+  useEffect(() => {
+    if (addressFetchTimeout.current) {
+      window.clearTimeout(addressFetchTimeout.current);
+    }
+
+    const query = step2Data.address.trim();
+    if (query.length < 3 || !AUTOCOMPLETE_URL) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setIsFetchingAddressSuggestions(false);
+      return;
+    }
+
+    setIsFetchingAddressSuggestions(true);
+    addressFetchTimeout.current = window.setTimeout(async () => {
+      try {
+        const suggestions = await getAddressAutocompleteSuggestions(query);
+        setAddressSuggestions(suggestions);
+        setShowAddressSuggestions(suggestions.length > 0);
+      } catch (error) {
+        console.error('Address autocomplete error:', error);
+        setAddressSuggestions([]);
+        setShowAddressSuggestions(false);
+      } finally {
+        setIsFetchingAddressSuggestions(false);
+      }
+    }, 400);
+
+    return () => {
+      if (addressFetchTimeout.current) {
+        window.clearTimeout(addressFetchTimeout.current);
+      }
+    };
+  }, [step2Data.address]);
 
   const [openingHours, setOpeningHours] = useState<Record<string, OpeningHour>>(
     DAYS.reduce((acc, day) => ({
@@ -157,9 +315,39 @@ export default function RegisterRestaurateurPage() {
     return true;
   };
 
-  const handleNextStep = () => {
-    if (step === 1 && validateStep1()) setStep(2);
-    else if (step === 2 && validateStep2()) setStep(3);
+  const handleNextStep = async () => {
+    if (step === 1 && validateStep1()) {
+      setStep(2);
+      return;
+    }
+
+    if (step === 2) {
+      if (!validateStep2()) {
+        return;
+      }
+
+      setIsValidatingAddress(true);
+      setErrors((prev) => ({ ...prev, address: '' }));
+
+      try {
+        const isValidAddress = await validateAddressWithNominatim(step2Data.address);
+        if (!isValidAddress) {
+          setErrors({
+            address: 'Adresse introuvable. Vérifiez l’adresse et réessayez.',
+          });
+          return;
+        }
+
+        setStep(3);
+      } catch (error) {
+        console.error('Address validation error:', error);
+        setErrors({
+          address: 'Impossible de vérifier l’adresse pour le moment. Réessayez plus tard.',
+        });
+      } finally {
+        setIsValidatingAddress(false);
+      }
+    }
   };
 
   const handlePrevStep = () => {
@@ -261,11 +449,11 @@ export default function RegisterRestaurateurPage() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         navigate('/dashboard');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
       toast({
         title: 'Erreur',
-        description: error.message || 'Une erreur est survenue',
+        description: error instanceof Error ? error.message : 'Une erreur est survenue',
         variant: 'destructive',
       });
     } finally {
@@ -555,10 +743,39 @@ export default function RegisterRestaurateurPage() {
                       placeholder="12 Rue de la Paix, 75002 Paris"
                       value={step2Data.address}
                       onChange={(e) => setStep2Data(prev => ({ ...prev, address: e.target.value }))}
+                      onFocus={() => {
+                        if (addressSuggestions.length > 0) {
+                          setShowAddressSuggestions(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        window.setTimeout(() => setShowAddressSuggestions(false), 150);
+                      }}
                       className={`pl-10 h-12 ${errors.address ? 'border-destructive' : ''}`}
                     />
+                    {showAddressSuggestions && addressSuggestions.length > 0 && (
+                      <div className="absolute z-20 left-0 right-0 mt-1 overflow-hidden rounded-xl border bg-background shadow-lg">
+                        {addressSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              setStep2Data(prev => ({ ...prev, address: suggestion }));
+                              setShowAddressSuggestions(false);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-muted/80"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    {isFetchingAddressSuggestions ? 'Recherche d’adresses...' : 'Suggestions automatiques dès que vous commencez à taper.'}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -674,8 +891,14 @@ export default function RegisterRestaurateurPage() {
                       Retour
                     </Button>
                   )}
-                  <Button variant="hero" size="lg" className="flex-1" onClick={handleNextStep}>
-                    Continuer
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    className="flex-1"
+                    onClick={handleNextStep}
+                    disabled={isValidatingAddress}
+                  >
+                    {isValidatingAddress ? 'Vérification de l’adresse…' : 'Continuer'}
                     <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
                 </div>
